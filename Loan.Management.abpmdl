@@ -1,0 +1,101 @@
+{
+  "template": "app",
+  "imports": {
+    "Volo.Abp.LeptonXLiteTheme": {
+      "version": "4.1.1",
+      "isInstalled": true
+    },
+    "Volo.Abp.Account": {
+      "version": "9.1.1",
+      "isInstalled": true
+    },
+    "Volo.Abp.OpenIddict": {
+      "version": "9.1.1",
+      "isInstalled": true
+    },
+    "Volo.Abp.Identity": {
+      "version": "9.1.1",
+      "isInstalled": true
+    },
+    "Volo.Abp.TenantManagement": {
+      "version": "9.1.1",
+      "isInstalled": true
+    },
+    "Volo.Abp.SettingManagement": {
+      "version": "9.1.1",
+      "isInstalled": true
+    },
+    "Volo.Abp.PermissionManagement": {
+      "version": "9.1.1",
+      "isInstalled": true
+    },
+    "Volo.Abp.FeatureManagement": {
+      "version": "9.1.1",
+      "isInstalled": true
+    }
+  },
+  "folders": {
+    "items": {
+      "src": {},
+      "test": {}
+    }
+  },
+  "packages": {
+    "Loan.Management.Application": {
+      "path": "src/Loan.Management.Application/Loan.Management.Application.abppkg",
+      "folder": "src"
+    },
+    "Loan.Management.Application.Tests": {
+      "path": "test/Loan.Management.Application.Tests/Loan.Management.Application.Tests.abppkg",
+      "folder": "test"
+    },
+    "Loan.Management.Domain.Shared": {
+      "path": "src/Loan.Management.Domain.Shared/Loan.Management.Domain.Shared.abppkg",
+      "folder": "src"
+    },
+    "Loan.Management.Application.Contracts": {
+      "path": "src/Loan.Management.Application.Contracts/Loan.Management.Application.Contracts.abppkg",
+      "folder": "src"
+    },
+    "Loan.Management.HttpApi": {
+      "path": "src/Loan.Management.HttpApi/Loan.Management.HttpApi.abppkg",
+      "folder": "src"
+    },
+    "Loan.Management.HttpApi.Client": {
+      "path": "src/Loan.Management.HttpApi.Client/Loan.Management.HttpApi.Client.abppkg",
+      "folder": "src"
+    },
+    "Loan.Management.EntityFrameworkCore.Tests": {
+      "path": "test/Loan.Management.EntityFrameworkCore.Tests/Loan.Management.EntityFrameworkCore.Tests.abppkg",
+      "folder": "test"
+    },
+    "Loan.Management.EntityFrameworkCore": {
+      "path": "src/Loan.Management.EntityFrameworkCore/Loan.Management.EntityFrameworkCore.abppkg",
+      "folder": "src"
+    },
+    "Loan.Management.TestBase": {
+      "path": "test/Loan.Management.TestBase/Loan.Management.TestBase.abppkg",
+      "folder": "test"
+    },
+    "Loan.Management.Domain.Tests": {
+      "path": "test/Loan.Management.Domain.Tests/Loan.Management.Domain.Tests.abppkg",
+      "folder": "test"
+    },
+    "Loan.Management.HttpApi.Client.ConsoleTestApp": {
+      "path": "test/Loan.Management.HttpApi.Client.ConsoleTestApp/Loan.Management.HttpApi.Client.ConsoleTestApp.abppkg",
+      "folder": "test"
+    },
+    "Loan.Management.DbMigrator": {
+      "path": "src/Loan.Management.DbMigrator/Loan.Management.DbMigrator.abppkg",
+      "folder": "src"
+    },
+    "Loan.Management.HttpApi.Host": {
+      "path": "src/Loan.Management.HttpApi.Host/Loan.Management.HttpApi.Host.abppkg",
+      "folder": "src"
+    },
+    "Loan.Management.Domain": {
+      "path": "src/Loan.Management.Domain/Loan.Management.Domain.abppkg",
+      "folder": "src"
+    }
+  }
+}
