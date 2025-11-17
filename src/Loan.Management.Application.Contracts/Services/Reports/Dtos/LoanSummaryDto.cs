@@ -1,0 +1,17 @@
+﻿using System;
+
+namespace Loan.Management.Services.Reports.Dtos
+{
+    public class LoanSummaryDto
+    {
+        public Guid LoanId { get; set; }
+        public DateTime DisbursementDate { get; set; }
+        public DateTime DueDate { get; set; }
+        public decimal PrincipalAmount { get; set; }
+        public decimal InterestAmount { get; set; }
+        public decimal TotalAmount { get; set; }
+        public decimal AmountPaid { get; set; }
+        public decimal Outstanding { get; set; }
+        public string Status { get; set; }
+    }
+}

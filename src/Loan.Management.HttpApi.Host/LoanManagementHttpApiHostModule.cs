@@ -30,6 +30,7 @@ using Volo.Abp.AspNetCore.Mvc.UI.Theme.LeptonXLite;
 using Volo.Abp.AspNetCore.Mvc.UI.Theme.Shared;
 using Volo.Abp.AspNetCore.Serilog;
 using Volo.Abp.Autofac;
+using Volo.Abp.BackgroundJobs;
 using Volo.Abp.BackgroundJobs.Hangfire;
 using Volo.Abp.Modularity;
 using Volo.Abp.OpenIddict;
@@ -122,6 +123,7 @@ public class LoanManagementHttpApiHostModule : AbpModule
         {
             options.AutoValidate = false; // Disable auto-validation globally
         });
+
 
         if (!configuration.GetValue<bool>("App:DisablePII"))
         {

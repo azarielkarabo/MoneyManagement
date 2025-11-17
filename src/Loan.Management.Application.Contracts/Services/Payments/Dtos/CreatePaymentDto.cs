@@ -1,0 +1,25 @@
+﻿using Loan.Management.Enums;
+using System;
+using System.ComponentModel.DataAnnotations;
+
+namespace Loan.Management.Services.Payments.Dtos
+{
+    public class CreatePaymentDto
+    {
+        [Required]
+        public Guid LoanId { get; set; }
+
+        [Required]
+        [Range(0.01, double.MaxValue, ErrorMessage = "Payment amount must be greater than 0")]
+        public decimal Amount { get; set; }
+
+        [Required]
+        public DateTime PaymentDate { get; set; }
+
+        [Required]
+        public PaymentMethod Method { get; set; }
+
+        [StringLength(500)]
+        public string Description { get; set; }
+    }
+}

@@ -1,0 +1,22 @@
+﻿using System;
+using System.ComponentModel.DataAnnotations;
+
+namespace Loan.Management.Services.Loans.Dtos
+{
+    public class LoanCalculationInput
+    {
+        [Required]
+        [Range(0.01, double.MaxValue, ErrorMessage = "Principal amount must be greater than 0")]
+        public decimal PrincipalAmount { get; set; }
+
+        [Required]
+        [Range(0, 100, ErrorMessage = "Interest rate must be between 0 and 100")]
+        public decimal InterestRate { get; set; }
+
+        [Required]
+        public DateTime DisbursementDate { get; set; }
+
+        [Required]
+        public DateTime DueDate { get; set; }
+    }
+}

@@ -1,6 +1,11 @@
 ﻿using Hangfire;
+using Loan.Management.Jobs;
+using System.Threading.Tasks;
+using Volo.Abp;
 using Volo.Abp.Account;
 using Volo.Abp.AutoMapper;
+using Volo.Abp.BackgroundJobs;
+using Volo.Abp.BackgroundWorkers;
 using Volo.Abp.FeatureManagement;
 using Volo.Abp.Hangfire;
 using Volo.Abp.Identity;
@@ -31,6 +36,16 @@ public class LoanManagementApplicationModule : AbpModule
             options.AddMaps<LoanManagementApplicationModule>();
         });
 
+        Configure<AbpBackgroundJobOptions>(options =>
+        {
+            options.IsJobExecutionEnabled = true;
+        });
+
         context.Services.AddHangfireServer();
+    }
+
+    public override async Task OnApplicationInitializationAsync(ApplicationInitializationContext context)
+    {
+        await context.AddBackgroundWorkerAsync<LoanManagementBackgroundWorker>();
     }
 }
