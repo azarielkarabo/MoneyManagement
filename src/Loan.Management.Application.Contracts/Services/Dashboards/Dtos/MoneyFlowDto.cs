@@ -1,23 +1,23 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 namespace Loan.Management.Services.Dashboards.Dtos
 {
+    /// <summary>
+    /// Money flow analysis
+    /// </summary>
     public class MoneyFlowDto
     {
         public List<MonthlyFlowDto> MonthlyData { get; set; }
+        public decimal TotalLentPeriod { get; set; }
+        public decimal TotalCollectedPeriod { get; set; }
+        public decimal NetFlowPeriod { get; set; }
+        public decimal AverageMonthlyLending { get; set; }
+        public decimal AverageMonthlyCollection { get; set; }
 
         public MoneyFlowDto()
         {
             MonthlyData = new List<MonthlyFlowDto>();
         }
-    }
-
-    public class MonthlyFlowDto
-    {
-        public string Month { get; set; }
-        public int Year { get; set; }
-        public decimal LentAmount { get; set; }
-        public decimal CollectedAmount { get; set; }
-        public decimal NetFlow { get; set; }
     }
 }

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Loan.Management.Services.Dashboards.Dtos;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -7,7 +8,71 @@ using Volo.Abp.Application.Services;
 
 namespace Loan.Management.Services.Dashboards
 {
-    internal class IDashboardAppService : IApplicationService
+    public interface IDashboardAppService : IApplicationService
     {
+        /// <summary>
+        /// Get complete dashboard data with all metrics
+        /// </summary>
+        Task<DashboardDto> GetDashboardDataAsync();
+
+        /// <summary>
+        /// Get dashboard summary statistics
+        /// </summary>
+        Task<DashboardSummaryDto> GetSummaryAsync();
+
+        /// <summary>
+        /// Get loan status distribution
+        /// </summary>
+        Task<LoanStatusDistributionDto> GetLoanDistributionAsync();
+
+        /// <summary>
+        /// Get top borrowers by total borrowed amount
+        /// </summary>
+        Task<List<TopBorrowerDto>> GetTopBorrowersAsync(int count = 10);
+
+        /// <summary>
+        /// Get money flow analysis for specified months
+        /// </summary>
+        Task<MoneyFlowDto> GetMoneyFlowAsync(int months = 12);
+
+        /// <summary>
+        /// Get recent transactions (loans and payments)
+        /// </summary>
+        Task<List<RecentTransactionDto>> GetRecentTransactionsAsync(int count = 10);
+
+        /// <summary>
+        /// Get collection metrics and performance
+        /// </summary>
+        Task<CollectionMetricsDto> GetCollectionMetricsAsync();
+
+        /// <summary>
+        /// Get upcoming payments/due loans
+        /// </summary>
+        Task<List<UpcomingPaymentDto>> GetUpcomingPaymentsAsync(int days = 30);
+
+        /// <summary>
+        /// Get borrower analytics
+        /// </summary>
+        Task<BorrowerAnalyticsDto> GetBorrowerAnalyticsAsync();
+
+        /// <summary>
+        /// Get portfolio health metrics
+        /// </summary>
+        Task<PortfolioHealthDto> GetPortfolioHealthAsync();
+
+        /// <summary>
+        /// Get loan aging analysis
+        /// </summary>
+        Task<LoanAgingDto> GetLoanAgingAsync();
+
+        /// <summary>
+        /// Get key performance indicators (KPIs)
+        /// </summary>
+        Task<Dictionary<string, decimal>> GetKpisAsync();
+
+        /// <summary>
+        /// Export dashboard data to Excel
+        /// </summary>
+        Task<byte[]> ExportDashboardDataAsync();
     }
 }
