@@ -15,12 +15,12 @@ namespace Loan.Management.Services.Reports.Dtos
         public decimal TotalPaid { get; set; }
         public decimal TotalOutstanding { get; set; }
 
-        public List<LoanSummaryDto> Loans { get; set; }
+        public List<LoanSummaryDto> credits { get; set; }
         public List<PaymentSummaryDto> Payments { get; set; }
 
         public BorrowerStatementDto()
         {
-            Loans = new List<LoanSummaryDto>();
+            credits = new List<LoanSummaryDto>();
             Payments = new List<PaymentSummaryDto>();
         }
     }

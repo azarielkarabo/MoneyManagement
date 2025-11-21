@@ -8,6 +8,6 @@ namespace Loan.Management.Services.Reports.Dtos
         public DateTime PaymentDate { get; set; }
         public decimal Amount { get; set; }
         public string Method { get; set; }
-        public Guid LoanId { get; set; }
+        public Guid CreditId { get; set; }
     }
 }

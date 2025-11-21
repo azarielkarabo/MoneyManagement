@@ -5,10 +5,10 @@ namespace Loan.Management.CustomExceptions
 {
     public class CannotCancelLoanWithPaymentsException : BusinessException
     {
-        public CannotCancelLoanWithPaymentsException(Guid loanId)
+        public CannotCancelLoanWithPaymentsException(Guid CreditId)
             : base("LoanManagement:CannotCancelLoanWithPayments")
         {
-            WithData("LoanId", loanId);
+            WithData("CreditId", CreditId);
         }
     }
 }

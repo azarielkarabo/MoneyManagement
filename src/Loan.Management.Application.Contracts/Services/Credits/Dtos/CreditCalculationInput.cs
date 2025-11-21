@@ -1,13 +1,10 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
 
-namespace Loan.Management.Services.Loans.Dtos
+namespace Loan.Management.Services.credits.Dtos
 {
-    public class CreateLoanDto
+    public class CreditCalculationInput
     {
-        [Required]
-        public Guid BorrowerId { get; set; }
-
         [Required]
         [Range(0.01, double.MaxValue, ErrorMessage = "Principal amount must be greater than 0")]
         public decimal PrincipalAmount { get; set; }
@@ -17,12 +14,10 @@ namespace Loan.Management.Services.Loans.Dtos
         public decimal InterestRate { get; set; }
 
         [Required]
-        public DateTime DisbursementDate { get; set; }
+        [Range(1, 600, ErrorMessage = "Term months must be between 1 and 600")]
+        public int TermMonths { get; set; }
 
         [Required]
         public DateTime DueDate { get; set; }
-
-        [StringLength(1000)]
-        public string Description { get; set; }
     }
 }

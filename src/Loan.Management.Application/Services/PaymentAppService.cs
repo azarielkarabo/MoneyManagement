@@ -1,5 +1,4 @@
-﻿using AutoMapper.Internal.Mappers;
-using Loan.Management.CustomExceptions;
+﻿using Loan.Management.CustomExceptions;
 using Loan.Management.DomainServices;
 using Loan.Management.Entities;
 using Loan.Management.Enums;
@@ -10,36 +9,47 @@ using Microsoft.AspNetCore.Authorization;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using Volo.Abp.Application.Dtos;
 using Volo.Abp.Application.Services;
 using Volo.Abp.Domain.Repositories;
 using Volo.Abp.Guids;
+using Volo.Abp.Users;
 
 namespace Loan.Management.Services
 {
-    [Authorize(LoanManagementPermissions.Payments.Default)]
     public class PaymentAppService : ApplicationService, IPaymentAppService
     {
         private readonly IRepository<Payment, Guid> _paymentRepository;
-        private readonly IRepository<Entities.Loan, Guid> _loanRepository;
+        private readonly IRepository<Credit, Guid> _creditRepository;
         private readonly IRepository<Borrower, Guid> _borrowerRepository;
-        private readonly LoanManager _loanManager;
+        private readonly CreditManager _creditManager;
         private readonly BorrowerManager _borrowerManager;
+        private readonly LenderManager _lenderManager;
+        private readonly ICurrentUser _currentUser;
 
         public PaymentAppService(
             IRepository<Payment, Guid> paymentRepository,
-            IRepository<Entities.Loan, Guid> loanRepository,
+            IRepository<Credit, Guid> creditRepository,
             IRepository<Borrower, Guid> borrowerRepository,
-            LoanManager loanManager,
-            BorrowerManager borrowerManager)
+            CreditManager creditManager,
+            BorrowerManager borrowerManager,
+            LenderManager lenderManager,
+            ICurrentUser currentUser)
         {
             _paymentRepository = paymentRepository;
-            _loanRepository = loanRepository;
+            _creditRepository = creditRepository;
             _borrowerRepository = borrowerRepository;
-            _loanManager = loanManager;
+            _creditManager = creditManager;
             _borrowerManager = borrowerManager;
+            _lenderManager = lenderManager;
+            _currentUser = currentUser;
+        }
+
+        private async Task<Guid> GetCurrentLenderIdAsync()
+        {
+            var lender = await _lenderManager.GetCurrentLenderAsync();
+            return lender.Id;
         }
 
         public async Task<PaymentDto> GetAsync(Guid id)
@@ -50,13 +60,20 @@ namespace Loan.Management.Services
 
         public async Task<PagedResultDto<PaymentDto>> GetListAsync(GetPaymentsInput input)
         {
+            var lenderId = await GetCurrentLenderIdAsync();
             var queryable = await _paymentRepository.GetQueryableAsync();
+
+            // Get credits for this lender to filter payments
+            var lenderCreditIds = (await _creditRepository.GetListAsync(c => c.LenderId == lenderId))
+                .Select(c => c.Id)
+                .ToList();
+
+            queryable = queryable.Where(p => lenderCreditIds.Contains(p.CreditId));
 
             // Apply filtering
             if (!string.IsNullOrWhiteSpace(input.Filter))
             {
                 queryable = queryable.Where(p =>
-                    p.BorrowerName.Contains(input.Filter) ||
                     (p.Description != null && p.Description.Contains(input.Filter)));
             }
 
@@ -65,9 +82,9 @@ namespace Loan.Management.Services
                 queryable = queryable.Where(p => p.BorrowerId == input.BorrowerId.Value);
             }
 
-            if (input.LoanId.HasValue)
+            if (input.CreditId.HasValue)
             {
-                queryable = queryable.Where(p => p.LoanId == input.LoanId.Value);
+                queryable = queryable.Where(p => p.CreditId == input.CreditId.Value);
             }
 
             if (input.Method.HasValue)
@@ -87,17 +104,8 @@ namespace Loan.Management.Services
 
             var totalCount = await AsyncExecuter.CountAsync(queryable);
 
-            //// Apply sorting
-            //if (!string.IsNullOrWhiteSpace(input.Sorting))
-            //{
-            //    queryable = queryable.OrderBy(input.Sorting);
-            //}
-            //else
-            //{
-                queryable = queryable.OrderByDescending(p => p.PaymentDate);
-            //}
-
             queryable = queryable
+                .OrderByDescending(p => p.PaymentDate)
                 .Skip(input.SkipCount)
                 .Take(input.MaxResultCount);
 
@@ -107,17 +115,23 @@ namespace Loan.Management.Services
             return new PagedResultDto<PaymentDto>(totalCount, dtos);
         }
 
-        [Authorize(LoanManagementPermissions.Payments.Create)]
         public async Task<PaymentDto> CreateAsync(CreatePaymentDto input)
         {
-            var loan = await _loanRepository.GetAsync(input.LoanId);
+            var lenderId = await GetCurrentLenderIdAsync();
+            var credit = await _creditRepository.GetAsync(input.CreditId);
+
+            // Verify credit belongs to current lender
+            if (credit.LenderId != lenderId)
+            {
+                throw new UnauthorizedAccessException("You do not have permission to record payment for this credit.");
+            }
 
             // Validate payment amount doesn't exceed outstanding
-            if (input.Amount > loan.OutstandingAmount)
+            if (input.Amount > credit.OutstandingAmount)
             {
                 throw new PaymentExceedsOutstandingException(
                     input.Amount,
-                    loan.OutstandingAmount);
+                    credit.OutstandingAmount);
             }
 
             // Validate payment amount is positive
@@ -126,74 +140,90 @@ namespace Loan.Management.Services
                 throw new InvalidPaymentAmountException(input.Amount);
             }
 
-            // Cannot make payment on cancelled loan
-            if (loan.Status == LoanStatus.Cancelled)
+            // Cannot make payment on suspended or rejected credit
+            if (credit.Status == CreditStatus.Suspended || credit.Status == CreditStatus.Rejected)
             {
-                throw new CannotPayCancelledLoanException(input.LoanId);
+                throw new InvalidOperationException($"Cannot record payment on a {credit.Status} credit.");
             }
 
-            var previousOutstanding = loan.OutstandingAmount;
+            // Get borrower for reference
+            var borrower = await _borrowerRepository.GetAsync(credit.BorrowerId);
 
             // Create payment entity
             var payment = new Payment(
                 GuidGenerator.Create(),
-                input.LoanId,
-                loan.BorrowerId,
-                loan.BorrowerName,
+                input.CreditId,
+                credit.BorrowerId,
+                borrower.FullName,
                 input.Amount,
                 input.PaymentDate,
-                previousOutstanding,
+                credit.OutstandingAmount,
                 input.Method,
                 input.Description
             );
 
             await _paymentRepository.InsertAsync(payment);
 
-            // Use domain service to record payment on loan
-            await _loanManager.RecordPaymentAsync(input.LoanId, input.Amount);
+            // Use domain service to record payment on credit
+            await _creditManager.RecordPaymentAsync(input.CreditId, input.Amount);
 
             // Update borrower financials using domain service
-            await _borrowerManager.UpdateFinancialSummaryAsync(loan.BorrowerId);
+            await _borrowerManager.UpdateFinancialSummaryAsync(credit.BorrowerId);
 
             await CurrentUnitOfWork.SaveChangesAsync();
 
             return await GetAsync(payment.Id);
         }
 
-        [Authorize(LoanManagementPermissions.Payments.Delete)]
         public async Task DeleteAsync(Guid id)
         {
+            var lenderId = await GetCurrentLenderIdAsync();
             var payment = await _paymentRepository.GetAsync(id);
-            var loan = await _loanRepository.GetAsync(payment.LoanId);
+            var credit = await _creditRepository.GetAsync(payment.CreditId);
 
-            // Reverse payment on loan
-            loan.AmountPaid -= payment.Amount;
-            loan.OutstandingAmount += payment.Amount;
-
-            // Update loan status
-            if (loan.OutstandingAmount > 0)
+            // Verify credit belongs to current lender
+            if (credit.LenderId != lenderId)
             {
-                if (DateTime.UtcNow > loan.DueDate)
+                throw new UnauthorizedAccessException("You do not have permission to delete this payment.");
+            }
+
+            // Reverse payment on credit
+            credit.AmountPaid -= payment.Amount;
+            credit.OutstandingAmount += payment.Amount;
+
+            // Update credit status
+            if (credit.OutstandingAmount > 0)
+            {
+                if (DateTime.UtcNow > credit.DueDate)
                 {
-                    loan.Status = LoanStatus.Overdue;
+                    credit.Status = CreditStatus.Overdue;
                 }
                 else
                 {
-                    loan.Status = LoanStatus.Active;
+                    credit.Status = CreditStatus.Active;
                 }
             }
 
-            await _loanRepository.UpdateAsync(loan);
+            await _creditRepository.UpdateAsync(credit);
             await _paymentRepository.DeleteAsync(id);
 
             // Update borrower financials using domain service
-            await _borrowerManager.UpdateFinancialSummaryAsync(loan.BorrowerId);
+            await _borrowerManager.UpdateFinancialSummaryAsync(credit.BorrowerId);
         }
 
         public async Task<List<PaymentsByBorrowerDto>> GetPaymentsByBorrowerAsync(
             GetPaymentsInput input)
         {
+            var lenderId = await GetCurrentLenderIdAsync();
+
+            // Get all credits for this lender
+            var lenderCredits = await _creditRepository.GetListAsync(c => c.LenderId == lenderId);
+            var lenderCreditIds = lenderCredits.Select(c => c.Id).ToList();
+
             var queryable = await _paymentRepository.GetQueryableAsync();
+
+            // Filter by lender's credits
+            queryable = queryable.Where(p => lenderCreditIds.Contains(p.CreditId));
 
             // Apply date filters
             if (input.FromDate.HasValue)
@@ -227,47 +257,64 @@ namespace Loan.Management.Services
             return groupedPayments;
         }
 
-        [Authorize(LoanManagementPermissions.Payments.Approve)]
         public async Task<PaymentDto> ApprovePaymentAsync(Guid id)
         {
-            // This could be used if you have a payment approval workflow
-            // For example, payments might need manager approval before they're finalized
+            var lenderId = await GetCurrentLenderIdAsync();
             var payment = await _paymentRepository.GetAsync(id);
+            var credit = await _creditRepository.GetAsync(payment.CreditId);
+
+            // Verify credit belongs to current lender
+            if (credit.LenderId != lenderId)
+            {
+                throw new UnauthorizedAccessException("You do not have permission to approve this payment.");
+            }
 
             // Add approval logic here if needed
-            // Example: payment.IsApproved = true;
-            // await _paymentRepository.UpdateAsync(payment);
-
             return ObjectMapper.Map<Payment, PaymentDto>(payment);
         }
 
         public async Task<decimal> GetTotalPaymentsAsync(
             Guid? borrowerId = null,
-            Guid? loanId = null)
+            Guid? creditId = null)
         {
+            var lenderId = await GetCurrentLenderIdAsync();
+
             var queryable = await _paymentRepository.GetQueryableAsync();
+
+            // Get all credits for this lender
+            var lenderCreditIds = (await _creditRepository.GetListAsync(c => c.LenderId == lenderId))
+                .Select(c => c.Id)
+                .ToList();
+
+            queryable = queryable.Where(p => lenderCreditIds.Contains(p.CreditId));
 
             if (borrowerId.HasValue)
             {
                 queryable = queryable.Where(p => p.BorrowerId == borrowerId.Value);
             }
 
-            if (loanId.HasValue)
+            if (creditId.HasValue)
             {
-                queryable = queryable.Where(p => p.LoanId == loanId.Value);
+                queryable = queryable.Where(p => p.CreditId == creditId.Value);
             }
 
             var payments = await AsyncExecuter.ToListAsync(queryable);
-            var total = payments.Sum(p => p.Amount);
-
-            return total;
+            return payments.Sum(p => p.Amount);
         }
 
         public async Task<List<PaymentDto>> GetRecentPaymentsAsync(int count = 10)
         {
+            var lenderId = await GetCurrentLenderIdAsync();
+
+            // Get all credits for this lender
+            var lenderCreditIds = (await _creditRepository.GetListAsync(c => c.LenderId == lenderId))
+                .Select(c => c.Id)
+                .ToList();
+
             var queryable = await _paymentRepository.GetQueryableAsync();
 
             queryable = queryable
+                .Where(p => lenderCreditIds.Contains(p.CreditId))
                 .OrderByDescending(p => p.PaymentDate)
                 .Take(count);
 

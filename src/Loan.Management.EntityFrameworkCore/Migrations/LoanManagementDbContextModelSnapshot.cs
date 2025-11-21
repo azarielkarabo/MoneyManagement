@@ -29,10 +29,15 @@ namespace Loan.Management.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("Address")
+                    b.Property<string>("AlternativePhoneNumber")
                         .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("nvarchar(512)");
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("City")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()
@@ -40,6 +45,11 @@ namespace Loan.Management.Migrations
                         .HasMaxLength(40)
                         .HasColumnType("nvarchar(40)")
                         .HasColumnName("ConcurrencyStamp");
+
+                    b.Property<string>("Country")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<DateTime>("CreationTime")
                         .HasColumnType("datetime2")
@@ -49,6 +59,15 @@ namespace Loan.Management.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("CreatorId");
 
+                    b.Property<DateTime>("DateOfBirth")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal>("DefaultAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("DefaultedLoans")
+                        .HasColumnType("int");
+
                     b.Property<Guid?>("DeleterId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("DeleterId");
@@ -57,21 +76,82 @@ namespace Loan.Management.Migrations
                         .HasColumnType("datetime2")
                         .HasColumnName("DeletionTime");
 
+                    b.Property<string>("EmailAddress")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("EmergencyContactName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("EmergencyContactPhone")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("EmergencyContactRelationship")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Employer")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime>("EmploymentStartDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("EmploymentStatus")
+                        .HasColumnType("int");
+
                     b.Property<string>("ExtraProperties")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("ExtraProperties");
+
+                    b.Property<string>("FirstName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("FullName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime>("IdExpiryDate")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("IdNumber")
                         .IsRequired()
                         .HasMaxLength(13)
                         .HasColumnType("nvarchar(13)");
 
+                    b.Property<int>("IdType")
+                        .HasColumnType("int");
+
                     b.Property<bool>("IsDeleted")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
                         .HasDefaultValue(false)
                         .HasColumnName("IsDeleted");
+
+                    b.Property<bool>("IsKycVerified")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("JobTitle")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("KycVerificationDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("LastActivityDate")
+                        .HasColumnType("datetime2");
 
                     b.Property<DateTime?>("LastModificationTime")
                         .HasColumnType("datetime2")
@@ -81,34 +161,84 @@ namespace Loan.Management.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("LastModifierId");
 
+                    b.Property<string>("LastName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid>("LenderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("MaritalStatus")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("MonthlyIncome")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int?>("NumberOfDependents")
+                        .HasColumnType("int");
+
                     b.Property<decimal>("Outstanding")
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("Paid")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<string>("PhoneNumber")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("PostalCode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Province")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<int>("Status")
                         .HasColumnType("int");
+
+                    b.Property<string>("StreetAddress")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<decimal>("TotalBorrowed")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("TotalLoans")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("EmailAddress");
 
                     b.HasIndex("IdNumber")
                         .IsUnique();
 
+                    b.HasIndex("IsKycVerified");
+
+                    b.HasIndex("LenderId");
+
+                    b.HasIndex("PhoneNumber");
+
                     b.HasIndex("Status");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("LenderId", "Status");
 
                     b.ToTable("Borrowers", (string)null);
                 });
 
-            modelBuilder.Entity("Loan.Management.Entities.Loan", b =>
+            modelBuilder.Entity("Loan.Management.Entities.Credit", b =>
                 {
                     b.Property<Guid>("Id")
                         .HasColumnType("uniqueidentifier");
@@ -119,11 +249,6 @@ namespace Loan.Management.Migrations
                     b.Property<Guid>("BorrowerId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("BorrowerName")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
-
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()
                         .IsRequired()
@@ -146,14 +271,6 @@ namespace Loan.Management.Migrations
                     b.Property<DateTime?>("DeletionTime")
                         .HasColumnType("datetime2")
                         .HasColumnName("DeletionTime");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<DateTime>("DisbursementDate")
-                        .HasColumnType("datetime2");
 
                     b.Property<DateTime>("DueDate")
                         .HasColumnType("datetime2");
@@ -175,6 +292,9 @@ namespace Loan.Management.Migrations
                         .HasDefaultValue(false)
                         .HasColumnName("IsDeleted");
 
+                    b.Property<DateTime>("IssuedDate")
+                        .HasColumnType("datetime2");
+
                     b.Property<DateTime?>("LastModificationTime")
                         .HasColumnType("datetime2")
                         .HasColumnName("LastModificationTime");
@@ -183,13 +303,32 @@ namespace Loan.Management.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("LastModifierId");
 
+                    b.Property<DateTime?>("LastPaymentDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("LenderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
                     b.Property<decimal>("OutstandingAmount")
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("PrincipalAmount")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<string>("Purpose")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
                     b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TermMonths")
                         .HasColumnType("int");
 
                     b.Property<decimal>("TotalAmount")
@@ -201,11 +340,93 @@ namespace Loan.Management.Migrations
 
                     b.HasIndex("DueDate");
 
+                    b.HasIndex("IssuedDate");
+
+                    b.HasIndex("LenderId");
+
                     b.HasIndex("Status");
+
+                    b.HasIndex("BorrowerId", "Status");
+
+                    b.HasIndex("LenderId", "Status");
 
                     b.HasIndex("Status", "DueDate");
 
-                    b.ToTable("Loans", (string)null);
+                    b.ToTable("Credits", (string)null);
+                });
+
+            modelBuilder.Entity("Loan.Management.Entities.Lender", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ConcurrencyStamp")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)")
+                        .HasColumnName("ConcurrencyStamp");
+
+                    b.Property<DateTime>("CreationTime")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("CreationTime");
+
+                    b.Property<Guid?>("CreatorId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("CreatorId");
+
+                    b.Property<Guid?>("DeleterId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("DeleterId");
+
+                    b.Property<DateTime?>("DeletionTime")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("DeletionTime");
+
+                    b.Property<string>("ExtraProperties")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("ExtraProperties");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false)
+                        .HasColumnName("IsDeleted");
+
+                    b.Property<DateTime?>("LastModificationTime")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("LastModificationTime");
+
+                    b.Property<Guid?>("LastModifierId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("LastModifierId");
+
+                    b.Property<decimal>("MaxLoanApprovalAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Position")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("TotalBorrowersManaged")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TotalLoansCreated")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Position");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("Lenders", (string)null);
                 });
 
             modelBuilder.Entity("Loan.Management.Entities.Payment", b =>
@@ -239,6 +460,9 @@ namespace Loan.Management.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("CreatorId");
 
+                    b.Property<Guid>("CreditId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid?>("DeleterId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("DeleterId");
@@ -271,9 +495,6 @@ namespace Loan.Management.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("LastModifierId");
 
-                    b.Property<Guid>("LoanId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<int>("Method")
                         .HasColumnType("int");
 
@@ -290,11 +511,15 @@ namespace Loan.Management.Migrations
 
                     b.HasIndex("BorrowerId");
 
-                    b.HasIndex("LoanId");
+                    b.HasIndex("CreditId");
 
                     b.HasIndex("Method");
 
                     b.HasIndex("PaymentDate");
+
+                    b.HasIndex("BorrowerId", "PaymentDate");
+
+                    b.HasIndex("CreditId", "PaymentDate");
 
                     b.ToTable("Payments", (string)null);
                 });
@@ -2158,24 +2383,43 @@ namespace Loan.Management.Migrations
 
             modelBuilder.Entity("Loan.Management.Entities.Borrower", b =>
                 {
-                    b.HasOne("Volo.Abp.Identity.IdentityUser", "User")
+                    b.HasOne("Loan.Management.Entities.Lender", "Lender")
                         .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasForeignKey("LenderId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.Navigation("User");
+                    b.Navigation("Lender");
                 });
 
-            modelBuilder.Entity("Loan.Management.Entities.Loan", b =>
+            modelBuilder.Entity("Loan.Management.Entities.Credit", b =>
                 {
                     b.HasOne("Loan.Management.Entities.Borrower", "Borrower")
-                        .WithMany("Loans")
+                        .WithMany("Credits")
                         .HasForeignKey("BorrowerId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("Loan.Management.Entities.Lender", "Lender")
+                        .WithMany()
+                        .HasForeignKey("LenderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.Navigation("Borrower");
+
+                    b.Navigation("Lender");
+                });
+
+            modelBuilder.Entity("Loan.Management.Entities.Lender", b =>
+                {
+                    b.HasOne("Volo.Abp.Identity.IdentityUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Loan.Management.Entities.Payment", b =>
@@ -2186,15 +2430,15 @@ namespace Loan.Management.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Loan.Management.Entities.Loan", "Loan")
-                        .WithMany("Payments")
-                        .HasForeignKey("LoanId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                    b.HasOne("Loan.Management.Entities.Credit", "Credit")
+                        .WithMany()
+                        .HasForeignKey("CreditId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Borrower");
 
-                    b.Navigation("Loan");
+                    b.Navigation("Credit");
                 });
 
             modelBuilder.Entity("Volo.Abp.AuditLogging.AuditLogAction", b =>
@@ -2350,13 +2594,8 @@ namespace Loan.Management.Migrations
 
             modelBuilder.Entity("Loan.Management.Entities.Borrower", b =>
                 {
-                    b.Navigation("Loans");
+                    b.Navigation("Credits");
 
-                    b.Navigation("Payments");
-                });
-
-            modelBuilder.Entity("Loan.Management.Entities.Loan", b =>
-                {
                     b.Navigation("Payments");
                 });
 

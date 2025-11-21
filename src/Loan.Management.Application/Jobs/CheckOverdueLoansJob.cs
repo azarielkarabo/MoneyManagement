@@ -7,9 +7,9 @@ namespace Loan.Management.Jobs
 {
     public class CheckOverdueLoansJob : AsyncBackgroundJob<CheckOverdueLoansArgs>, ITransientDependency
     {
-        private readonly LoanManager _loanManager;
+        private readonly CreditManager _loanManager;
 
-        public CheckOverdueLoansJob(LoanManager loanManager)
+        public CheckOverdueLoansJob(CreditManager loanManager)
         {
             _loanManager = loanManager;
         }

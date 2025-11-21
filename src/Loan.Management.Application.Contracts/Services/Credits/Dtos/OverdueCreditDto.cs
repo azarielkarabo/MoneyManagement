@@ -2,9 +2,9 @@
 using System;
 using Volo.Abp.Application.Dtos;
 
-namespace Loan.Management.Services.Loans.Dtos
+namespace Loan.Management.Services.credits.Dtos
 {
-    public class OverdueLoanDto : EntityDto<Guid>
+    public class OverdueCreditDto : EntityDto<Guid>
     {
         public Guid BorrowerId { get; set; }
         public string BorrowerName { get; set; }

@@ -4,7 +4,7 @@ namespace Loan.Management.Services.Reports.Dtos
 {
     public class LoanSummaryDto
     {
-        public Guid LoanId { get; set; }
+        public Guid CreditId { get; set; }
         public DateTime DisbursementDate { get; set; }
         public DateTime DueDate { get; set; }
         public decimal PrincipalAmount { get; set; }

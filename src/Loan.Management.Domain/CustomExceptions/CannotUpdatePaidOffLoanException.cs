@@ -5,10 +5,10 @@ namespace Loan.Management.CustomExceptions
 {
     public class CannotUpdatePaidOffLoanException : BusinessException
     {
-        public CannotUpdatePaidOffLoanException(Guid loanId)
+        public CannotUpdatePaidOffLoanException(Guid CreditId)
             : base("LoanManagement:CannotUpdatePaidOffLoan")
         {
-            WithData("LoanId", loanId);
+            WithData("CreditId", CreditId);
         }
     }
 }

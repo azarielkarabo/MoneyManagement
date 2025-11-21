@@ -7,7 +7,7 @@ namespace Loan.Management.Services.Payments.Dtos
     public class CreatePaymentDto
     {
         [Required]
-        public Guid LoanId { get; set; }
+        public Guid CreditId { get; set; }
 
         [Required]
         [Range(0.01, double.MaxValue, ErrorMessage = "Payment amount must be greater than 0")]

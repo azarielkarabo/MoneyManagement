@@ -8,11 +8,11 @@ namespace Loan.Management.Events.Handlers
     public class PaymentReceivedEventHandler : ILocalEventHandler<PaymentReceivedEvent>, ITransientDependency
     {
         private readonly BorrowerManager _borrowerManager;
-        private readonly LoanManager _loanManager;
+        private readonly CreditManager _loanManager;
 
         public PaymentReceivedEventHandler(
             BorrowerManager borrowerManager,
-            LoanManager loanManager)
+            CreditManager loanManager)
         {
             _borrowerManager = borrowerManager;
             _loanManager = loanManager;
@@ -20,9 +20,9 @@ namespace Loan.Management.Events.Handlers
 
         public async Task HandleEventAsync(PaymentReceivedEvent eventData)
         {
-            // Update loan status
+            // Update credit status
             await _loanManager.RecordPaymentAsync(
-                eventData.Payment.LoanId,
+                eventData.Payment.CreditId,
                 eventData.Payment.Amount);
 
             // Update borrower financials

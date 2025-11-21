@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Loan.Management.Migrations
 {
     /// <inheritdoc />
-    public partial class loan_system : Migration
+    public partial class addinit : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -764,17 +764,15 @@ namespace Loan.Management.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Borrowers",
+                name: "Lenders",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    Address = table.Column<string>(type: "nvarchar(512)", maxLength: 512, nullable: false),
-                    IdNumber = table.Column<string>(type: "nvarchar(13)", maxLength: 13, nullable: false),
-                    Status = table.Column<int>(type: "int", nullable: false),
-                    TotalBorrowed = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    Outstanding = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    Paid = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    Position = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    MaxLoanApprovalAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    TotalLoansCreated = table.Column<int>(type: "int", nullable: false),
+                    TotalBorrowersManaged = table.Column<int>(type: "int", nullable: false),
                     ExtraProperties = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     ConcurrencyStamp = table.Column<string>(type: "nvarchar(40)", maxLength: 40, nullable: false),
                     CreationTime = table.Column<DateTime>(type: "datetime2", nullable: false),
@@ -787,13 +785,13 @@ namespace Loan.Management.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Borrowers", x => x.Id);
+                    table.PrimaryKey("PK_Lenders", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_Borrowers_AbpUsers_UserId",
+                        name: "FK_Lenders_AbpUsers_UserId",
                         column: x => x.UserId,
                         principalTable: "AbpUsers",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -845,22 +843,47 @@ namespace Loan.Management.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Loans",
+                name: "Borrowers",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    BorrowerId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    BorrowerName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
-                    PrincipalAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    InterestRate = table.Column<decimal>(type: "decimal(5,2)", nullable: false),
-                    InterestAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    TotalAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    AmountPaid = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    OutstandingAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    DisbursementDate = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    DueDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    LenderId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    FirstName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    LastName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    FullName = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    DateOfBirth = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    IdNumber = table.Column<string>(type: "nvarchar(13)", maxLength: 13, nullable: false),
+                    IdType = table.Column<int>(type: "int", nullable: false),
+                    IdExpiryDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    EmailAddress = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
+                    PhoneNumber = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
+                    AlternativePhoneNumber = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
+                    StreetAddress = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false),
+                    City = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    Province = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    PostalCode = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
+                    Country = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    EmploymentStatus = table.Column<int>(type: "int", nullable: false),
+                    Employer = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    JobTitle = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    MonthlyIncome = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    EmploymentStartDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    MaritalStatus = table.Column<int>(type: "int", nullable: false),
+                    NumberOfDependents = table.Column<int>(type: "int", nullable: true),
+                    EmergencyContactName = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    EmergencyContactPhone = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
+                    EmergencyContactRelationship = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     Status = table.Column<int>(type: "int", nullable: false),
-                    Description = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: false),
+                    IsKycVerified = table.Column<bool>(type: "bit", nullable: false),
+                    KycVerificationDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    TotalBorrowed = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    Outstanding = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    Paid = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    DefaultAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    TotalLoans = table.Column<int>(type: "int", nullable: false),
+                    DefaultedLoans = table.Column<int>(type: "int", nullable: false),
+                    LastActivityDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    Notes = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: false),
                     ExtraProperties = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     ConcurrencyStamp = table.Column<string>(type: "nvarchar(40)", maxLength: 40, nullable: false),
                     CreationTime = table.Column<DateTime>(type: "datetime2", nullable: false),
@@ -873,11 +896,11 @@ namespace Loan.Management.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Loans", x => x.Id);
+                    table.PrimaryKey("PK_Borrowers", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_Loans_Borrowers_BorrowerId",
-                        column: x => x.BorrowerId,
-                        principalTable: "Borrowers",
+                        name: "FK_Borrowers_Lenders_LenderId",
+                        column: x => x.LenderId,
+                        principalTable: "Lenders",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                 });
@@ -917,11 +940,58 @@ namespace Loan.Management.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "Credits",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    BorrowerId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    LenderId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    PrincipalAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    InterestRate = table.Column<decimal>(type: "decimal(5,2)", nullable: false),
+                    TermMonths = table.Column<int>(type: "int", nullable: false),
+                    IssuedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    DueDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    InterestAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    TotalAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    AmountPaid = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    OutstandingAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    Status = table.Column<int>(type: "int", nullable: false),
+                    Purpose = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false),
+                    Notes = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: false),
+                    LastPaymentDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    ExtraProperties = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ConcurrencyStamp = table.Column<string>(type: "nvarchar(40)", maxLength: 40, nullable: false),
+                    CreationTime = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatorId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    LastModificationTime = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    LastModifierId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false, defaultValue: false),
+                    DeleterId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    DeletionTime = table.Column<DateTime>(type: "datetime2", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Credits", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Credits_Borrowers_BorrowerId",
+                        column: x => x.BorrowerId,
+                        principalTable: "Borrowers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_Credits_Lenders_LenderId",
+                        column: x => x.LenderId,
+                        principalTable: "Lenders",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Payments",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    LoanId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    CreditId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     BorrowerId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     BorrowerName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
                     Amount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
@@ -950,11 +1020,11 @@ namespace Loan.Management.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_Payments_Loans_LoanId",
-                        column: x => x.LoanId,
-                        principalTable: "Loans",
+                        name: "FK_Payments_Credits_CreditId",
+                        column: x => x.CreditId,
+                        principalTable: "Credits",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateIndex(
@@ -1191,10 +1261,35 @@ namespace Loan.Management.Migrations
                 column: "UserName");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Borrowers_EmailAddress",
+                table: "Borrowers",
+                column: "EmailAddress");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Borrowers_IdNumber",
                 table: "Borrowers",
                 column: "IdNumber",
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Borrowers_IsKycVerified",
+                table: "Borrowers",
+                column: "IsKycVerified");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Borrowers_LenderId",
+                table: "Borrowers",
+                column: "LenderId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Borrowers_LenderId_Status",
+                table: "Borrowers",
+                columns: new[] { "LenderId", "Status" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Borrowers_PhoneNumber",
+                table: "Borrowers",
+                column: "PhoneNumber");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Borrowers_Status",
@@ -1202,29 +1297,55 @@ namespace Loan.Management.Migrations
                 column: "Status");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Borrowers_UserId",
-                table: "Borrowers",
-                column: "UserId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Loans_BorrowerId",
-                table: "Loans",
+                name: "IX_Credits_BorrowerId",
+                table: "Credits",
                 column: "BorrowerId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Loans_DueDate",
-                table: "Loans",
+                name: "IX_Credits_BorrowerId_Status",
+                table: "Credits",
+                columns: new[] { "BorrowerId", "Status" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Credits_DueDate",
+                table: "Credits",
                 column: "DueDate");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Loans_Status",
-                table: "Loans",
+                name: "IX_Credits_IssuedDate",
+                table: "Credits",
+                column: "IssuedDate");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Credits_LenderId",
+                table: "Credits",
+                column: "LenderId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Credits_LenderId_Status",
+                table: "Credits",
+                columns: new[] { "LenderId", "Status" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Credits_Status",
+                table: "Credits",
                 column: "Status");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Loans_Status_DueDate",
-                table: "Loans",
+                name: "IX_Credits_Status_DueDate",
+                table: "Credits",
                 columns: new[] { "Status", "DueDate" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Lenders_Position",
+                table: "Lenders",
+                column: "Position");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Lenders_UserId",
+                table: "Lenders",
+                column: "UserId",
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_OpenIddictApplications_ClientId",
@@ -1262,9 +1383,19 @@ namespace Loan.Management.Migrations
                 column: "BorrowerId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Payments_LoanId",
+                name: "IX_Payments_BorrowerId_PaymentDate",
                 table: "Payments",
-                column: "LoanId");
+                columns: new[] { "BorrowerId", "PaymentDate" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Payments_CreditId",
+                table: "Payments",
+                column: "CreditId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Payments_CreditId_PaymentDate",
+                table: "Payments",
+                columns: new[] { "CreditId", "PaymentDate" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_Payments_Method",
@@ -1386,7 +1517,7 @@ namespace Loan.Management.Migrations
                 name: "OpenIddictAuthorizations");
 
             migrationBuilder.DropTable(
-                name: "Loans");
+                name: "Credits");
 
             migrationBuilder.DropTable(
                 name: "AbpAuditLogs");
@@ -1396,6 +1527,9 @@ namespace Loan.Management.Migrations
 
             migrationBuilder.DropTable(
                 name: "Borrowers");
+
+            migrationBuilder.DropTable(
+                name: "Lenders");
 
             migrationBuilder.DropTable(
                 name: "AbpUsers");

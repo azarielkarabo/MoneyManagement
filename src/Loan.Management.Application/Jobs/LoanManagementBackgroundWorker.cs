@@ -25,18 +25,18 @@ namespace Loan.Management.Jobs
 
             var loanManager = workerContext
                 .ServiceProvider
-                .GetRequiredService<LoanManager>();
+                .GetRequiredService<CreditManager>();
 
             try
             {
-                // Check and update overdue loans
+                // Check and update overdue credits
                 await loanManager.CheckAndUpdateOverdueLoansAsync();
 
-                Logger.LogInformation("Successfully updated overdue loan statuses");
+                Logger.LogInformation("Successfully updated overdue credit statuses");
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "Error occurred while updating overdue loans");
+                Logger.LogError(ex, "Error occurred while updating overdue credits");
             }
         }
     }

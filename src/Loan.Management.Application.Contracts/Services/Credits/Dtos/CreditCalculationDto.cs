@@ -1,6 +1,6 @@
-﻿namespace Loan.Management.Services.Loans.Dtos;
+﻿namespace Loan.Management.Services.credits.Dtos;
 
-public class LoanCalculationDto
+public class CreditCalculationDto
 {
     public decimal PrincipalAmount { get; set; }
     public decimal InterestRate { get; set; }

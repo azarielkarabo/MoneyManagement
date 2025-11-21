@@ -2,13 +2,13 @@
 using System;
 using Volo.Abp.Application.Dtos;
 
-namespace Loan.Management.Services.Loans.Dtos
+namespace Loan.Management.Services.credits.Dtos
 {
-    public class GetLoansInput : PagedAndSortedResultRequestDto
+    public class GetCreditsInput : PagedAndSortedResultRequestDto
     {
-        public string Filter { get; set; }
+        public string? Filter { get; set; }
         public Guid? BorrowerId { get; set; }
-        public LoanStatus? Status { get; set; }
+        public CreditStatus? Status { get; set; }
         public DateTime? FromDate { get; set; }
         public DateTime? ToDate { get; set; }
         public decimal? MinAmount { get; set; }

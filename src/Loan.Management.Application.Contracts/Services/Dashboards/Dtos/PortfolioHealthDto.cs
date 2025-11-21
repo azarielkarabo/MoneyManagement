@@ -7,10 +7,10 @@ namespace Loan.Management.Services.Dashboards.Dtos
     /// </summary>
     public class PortfolioHealthDto
     {
-        public decimal PortfolioAtRisk { get; set; } // PAR - percentage of overdue loans
-        public decimal Par30 { get; set; } // Loans overdue > 30 days
-        public decimal Par60 { get; set; } // Loans overdue > 60 days
-        public decimal Par90 { get; set; } // Loans overdue > 90 days
+        public decimal PortfolioAtRisk { get; set; } // PAR - percentage of overdue credits
+        public decimal Par30 { get; set; } // credits overdue > 30 days
+        public decimal Par60 { get; set; } // credits overdue > 60 days
+        public decimal Par90 { get; set; } // credits overdue > 90 days
 
         public decimal WriteOffRatio { get; set; }
         public decimal DelinquencyRate { get; set; }

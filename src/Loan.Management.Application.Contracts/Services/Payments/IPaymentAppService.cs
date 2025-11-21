@@ -23,7 +23,7 @@ namespace Loan.Management.Services.Payments
 
         Task<PaymentDto> ApprovePaymentAsync(Guid id);
 
-        Task<decimal> GetTotalPaymentsAsync(Guid? borrowerId = null, Guid? loanId = null);
+        Task<decimal> GetTotalPaymentsAsync(Guid? borrowerId = null, Guid? CreditId = null);
 
         Task<List<PaymentDto>> GetRecentPaymentsAsync(int count = 10);
     }

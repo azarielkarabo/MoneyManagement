@@ -9,12 +9,12 @@ using Volo.Abp.Identity;
 
 namespace Loan.Management.DomainServices
 {
-    public class LoanIdentityUserManager : DomainService
+    public class CreditIdentityUserManager : DomainService
     {
         private readonly IdentityUserManager _identityUserManager;
         private readonly IIdentityUserRepository _identityUserRepository;
 
-        public LoanIdentityUserManager(
+        public CreditIdentityUserManager(
             IdentityUserManager identityUserManager,
             IIdentityUserRepository identityUserRepository)
         {

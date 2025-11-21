@@ -5,41 +5,49 @@ using Loan.Management.Enums;
 using Loan.Management.Permissions;
 using Loan.Management.Services.Borrowers;
 using Loan.Management.Services.Borrowers.Dtos;
-using Loan.Management.Services.Loans.Dtos;
+using Loan.Management.Services.credits.Dtos;
 using Loan.Management.Services.Payments.Dtos;
 using Microsoft.AspNetCore.Authorization;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using Volo.Abp.Application.Dtos;
 using Volo.Abp.Application.Services;
 using Volo.Abp.Domain.Repositories;
+using Volo.Abp.Users;
 
 namespace Loan.Management.Services
 {
-    [Authorize(LoanManagementPermissions.Borrowers.Default)]
     public class BorrowerAppService : ApplicationService, IBorrowerAppService
     {
         private readonly IRepository<Borrower, Guid> _borrowerRepository;
-        private readonly IRepository<Entities.Loan, Guid> _loanRepository;
+        private readonly IRepository<Credit, Guid> _creditRepository;
         private readonly IRepository<Payment, Guid> _paymentRepository;
         private readonly BorrowerManager _borrowerManager;
-        private readonly LoanIdentityUserManager _loanIdentityUserManager;
+        private readonly LenderManager _lenderManager;
+        private readonly ICurrentUser _currentUser;
 
         public BorrowerAppService(
             IRepository<Borrower, Guid> borrowerRepository,
-            IRepository<Entities.Loan, Guid> loanRepository,
+            IRepository<Credit, Guid> creditRepository,
             IRepository<Payment, Guid> paymentRepository,
             BorrowerManager borrowerManager,
-            LoanIdentityUserManager loanIdentityUserManager)
+            LenderManager lenderManager,
+            ICurrentUser currentUser)
         {
             _borrowerRepository = borrowerRepository;
-            _loanRepository = loanRepository;
+            _creditRepository = creditRepository;
             _paymentRepository = paymentRepository;
             _borrowerManager = borrowerManager;
-            _loanIdentityUserManager = loanIdentityUserManager;
+            _lenderManager = lenderManager;
+            _currentUser = currentUser;
+        }
+
+        private async Task<Guid> GetCurrentLenderIdAsync()
+        {
+            var lender = await _lenderManager.GetCurrentLenderAsync();
+            return lender.Id;
         }
 
         public async Task<BorrowerDto> GetAsync(Guid id)
@@ -48,26 +56,29 @@ namespace Loan.Management.Services
             var dto = ObjectMapper.Map<Borrower, BorrowerDto>(borrower);
 
             // Add counts
-            dto.ActiveLoansCount = await _loanRepository.CountAsync(
-                l => l.BorrowerId == id && l.Status == LoanStatus.Active);
-            dto.TotalLoansCount = await _loanRepository.CountAsync(l => l.BorrowerId == id);
+            dto.ActiveLoansCount = await _creditRepository.CountAsync(
+                l => l.BorrowerId == id && l.Status == CreditStatus.Active);
+            dto.TotalLoansCount = await _creditRepository.CountAsync(l => l.BorrowerId == id);
 
             return dto;
         }
 
         public async Task<PagedResultDto<BorrowerDto>> GetListAsync(GetBorrowersInput input)
         {
+            var lenderId = await GetCurrentLenderIdAsync();
             var queryable = await _borrowerRepository.GetQueryableAsync();
+
+            // Filter by current lender
+            queryable = queryable.Where(b => b.LenderId == lenderId);
 
             // Apply filtering
             if (!string.IsNullOrWhiteSpace(input.Filter))
             {
                 queryable = queryable.Where(b =>
-                    b.User != null && (
-                    b.User.Name.Contains(input.Filter) ||
-                    b.User.PhoneNumber.Contains(input.Filter) ||
-                    b.User.Email.Contains(input.Filter) ||
-                    b.IdNumber.Contains(input.Filter)));
+                    b.FullName.Contains(input.Filter) ||
+                    b.PhoneNumber.Contains(input.Filter) ||
+                    b.EmailAddress.Contains(input.Filter) ||
+                    b.IdNumber.Contains(input.Filter));
             }
 
             if (input.Status.HasValue)
@@ -88,18 +99,9 @@ namespace Loan.Management.Services
             // Get total count
             var totalCount = await AsyncExecuter.CountAsync(queryable);
 
-            // Apply sorting
-            //if (!string.IsNullOrWhiteSpace(input.Sorting))
-            //{
-            //    queryable = queryable.OrderBy(input.Sorting);
-            //}
-            //else
-            //{
-            queryable = queryable.OrderByDescending(b => b.CreationTime);
-            //}
-
-            // Apply paging
+            // Apply sorting and paging
             queryable = queryable
+                .OrderByDescending(b => b.CreationTime)
                 .Skip(input.SkipCount)
                 .Take(input.MaxResultCount);
 
@@ -109,44 +111,63 @@ namespace Loan.Management.Services
             return new PagedResultDto<BorrowerDto>(totalCount, dtos);
         }
 
-        [Authorize(LoanManagementPermissions.Borrowers.Create)]
         public async Task<BorrowerDto> CreateAsync(CreateBorrowerDto input)
         {
-            // Use domain service to create borrower (includes business logic)
-            var creatUser = input.UserCreate;
+            var lenderId = await GetCurrentLenderIdAsync();
 
-            var identityUser = await _loanIdentityUserManager.CreateIdentityUserAsync(
-                creatUser.UserName,
-                creatUser.Email,
-                creatUser.Password,
-                creatUser.PhoneNumber,
-                creatUser.Name,
-                creatUser.Surname,
-                isActive: true,
-                null);
+            // Check for duplicate ID number within this lender
+            var existingBorrower = await _borrowerRepository
+                .FirstOrDefaultAsync(b => b.LenderId == lenderId && b.IdNumber == input.IdNumber);
 
+            if (existingBorrower != null)
+            {
+                throw new BorrowerAlreadyExistsException(input.IdNumber);
+            }
+
+            // Create borrower using domain service
             var borrower = await _borrowerManager.CreateAsync(
-                identityUser.Id,
-                input.Address,
-                input.IdNumber
+                lenderId,
+                input.FirstName,
+                input.LastName,
+                input.IdNumber,
+                input.IdType,
+                input.EmailAddress,
+                input.PhoneNumber,
+                input.StreetAddress,
+                input.City,
+                input.Province,
+                input.PostalCode,
+                input.Country,
+                input.DateOfBirth,
+                input.EmploymentStatus,
+                input.MonthlyIncome
             );
 
             await _borrowerRepository.InsertAsync(borrower);
             await CurrentUnitOfWork.SaveChangesAsync();
 
+            // Increment borrowers managed for the lender
+            await _lenderManager.IncrementBorrowersManagedAsync(lenderId);
+
             return await GetAsync(borrower.Id);
         }
 
-        [Authorize(LoanManagementPermissions.Borrowers.Edit)]
         public async Task<BorrowerDto> UpdateAsync(Guid id, UpdateBorrowerDto input)
         {
+            var lenderId = await GetCurrentLenderIdAsync();
             var borrower = await _borrowerRepository.GetAsync(id);
 
-            // Check if ID number changed and is unique
+            // Verify borrower belongs to current lender
+            if (borrower.LenderId != lenderId)
+            {
+                throw new UnauthorizedAccessException("You do not have permission to update this borrower.");
+            }
+
+            // Check if ID number changed and is unique within this lender
             if (borrower.IdNumber != input.IdNumber)
             {
                 var existingWithIdNumber = await _borrowerRepository
-                    .FirstOrDefaultAsync(b => b.IdNumber == input.IdNumber);
+                    .FirstOrDefaultAsync(b => b.LenderId == lenderId && b.IdNumber == input.IdNumber);
 
                 if (existingWithIdNumber != null)
                 {
@@ -154,31 +175,52 @@ namespace Loan.Management.Services
                 }
             }
 
-            var userUpdate = input.UserUpdate;
-
-            var userUpdateResults = await _loanIdentityUserManager.UpdateAsync(borrower.UserId,
-                          userUpdate.UserName,
-                          userUpdate.Email,
-                          userUpdate.PhoneNumber,
-                          userUpdate.Name,
-                          userUpdate.Surname,
-                          isActive: null);
-
-            borrower.Address = input.Address;
+            borrower.FirstName = input.FirstName;
+            borrower.LastName = input.LastName;
+            borrower.FullName = $"{input.FirstName} {input.LastName}";
             borrower.IdNumber = input.IdNumber;
+            borrower.IdType = input.IdType;
+            borrower.EmailAddress = input.EmailAddress;
+            borrower.PhoneNumber = input.PhoneNumber;
+            borrower.AlternativePhoneNumber = input.AlternativePhoneNumber;
+            borrower.StreetAddress = input.StreetAddress;
+            borrower.City = input.City;
+            borrower.Province = input.Province;
+            borrower.PostalCode = input.PostalCode;
+            borrower.Country = input.Country;
+            borrower.DateOfBirth = input.DateOfBirth;
+            borrower.EmploymentStatus = input.EmploymentStatus;
+            borrower.Employer = input.Employer;
+            borrower.JobTitle = input.JobTitle;
+            borrower.MonthlyIncome = input.MonthlyIncome;
+            borrower.EmploymentStartDate = input.EmploymentStartDate;
+            borrower.MaritalStatus = input.MaritalStatus;
+            borrower.NumberOfDependents = input.NumberOfDependents;
+            borrower.EmergencyContactName = input.EmergencyContactName;
+            borrower.EmergencyContactPhone = input.EmergencyContactPhone;
+            borrower.EmergencyContactRelationship = input.EmergencyContactRelationship;
+            borrower.Notes = input.Notes;
 
             await _borrowerRepository.UpdateAsync(borrower);
 
             return await GetAsync(id);
         }
 
-        [Authorize(LoanManagementPermissions.Borrowers.Delete)]
         public async Task DeleteAsync(Guid id)
         {
-            // Check if borrower has active loans
-            var hasActiveLoans = await _loanRepository.AnyAsync(
+            var lenderId = await GetCurrentLenderIdAsync();
+            var borrower = await _borrowerRepository.GetAsync(id);
+
+            // Verify borrower belongs to current lender
+            if (borrower.LenderId != lenderId)
+            {
+                throw new UnauthorizedAccessException("You do not have permission to delete this borrower.");
+            }
+
+            // Check if borrower has active credits
+            var hasActiveLoans = await _creditRepository.AnyAsync(
                 l => l.BorrowerId == id &&
-                (l.Status == LoanStatus.Active || l.Status == LoanStatus.Overdue));
+                (l.Status == CreditStatus.Active || l.Status == CreditStatus.Overdue));
 
             if (hasActiveLoans)
             {
@@ -188,20 +230,26 @@ namespace Loan.Management.Services
             await _borrowerRepository.DeleteAsync(id);
         }
 
-        [Authorize(LoanManagementPermissions.Borrowers.ViewFinancials)]
         public async Task<BorrowerDto> GetWithDetailsAsync(Guid id)
         {
             return await GetAsync(id);
         }
 
-        public async Task<PagedResultDto<LoanDto>> GetBorrowerLoansAsync(
+        public async Task<PagedResultDto<CreditDto>> GetBorrowerLoansAsync(
             Guid borrowerId,
-            GetLoansInput input)
+            GetCreditsInput input)
         {
-            input.BorrowerId = borrowerId;
+            var lenderId = await GetCurrentLenderIdAsync();
 
-            var queryable = await _loanRepository.GetQueryableAsync();
-            queryable = queryable.Where(l => l.BorrowerId == borrowerId);
+            // Verify borrower exists and belongs to current lender
+            var borrower = await _borrowerRepository.GetAsync(borrowerId);
+            if (borrower.LenderId != lenderId)
+            {
+                throw new UnauthorizedAccessException("You do not have permission to view this borrower's loans.");
+            }
+
+            var queryable = await _creditRepository.GetQueryableAsync();
+            queryable = queryable.Where(l => l.BorrowerId == borrowerId && l.LenderId == lenderId);
 
             // Apply additional filters
             if (input.Status.HasValue)
@@ -212,12 +260,12 @@ namespace Loan.Management.Services
             var totalCount = await AsyncExecuter.CountAsync(queryable);
 
             queryable = queryable
-                .OrderByDescending(l => l.DisbursementDate)
+                .OrderByDescending(l => l.IssuedDate)
                 .Skip(input.SkipCount)
                 .Take(input.MaxResultCount);
 
-            var loans = await AsyncExecuter.ToListAsync(queryable);
-            var dtos = ObjectMapper.Map<List<Entities.Loan>, List<LoanDto>>(loans);
+            var credits = await AsyncExecuter.ToListAsync(queryable);
+            var dtos = ObjectMapper.Map<List<Credit>, List<CreditDto>>(credits);
 
             // Calculate payment progress
             foreach (var dto in dtos)
@@ -227,14 +275,21 @@ namespace Loan.Management.Services
                     : 0;
             }
 
-            return new PagedResultDto<LoanDto>(totalCount, dtos);
+            return new PagedResultDto<CreditDto>(totalCount, dtos);
         }
 
         public async Task<PagedResultDto<PaymentDto>> GetBorrowerPaymentsAsync(
             Guid borrowerId,
             GetPaymentsInput input)
         {
-            input.BorrowerId = borrowerId;
+            var lenderId = await GetCurrentLenderIdAsync();
+
+            // Verify borrower exists and belongs to current lender
+            var borrower = await _borrowerRepository.GetAsync(borrowerId);
+            if (borrower.LenderId != lenderId)
+            {
+                throw new UnauthorizedAccessException("You do not have permission to view this borrower's payments.");
+            }
 
             var queryable = await _paymentRepository.GetQueryableAsync();
             queryable = queryable.Where(p => p.BorrowerId == borrowerId);
@@ -252,16 +307,77 @@ namespace Loan.Management.Services
             return new PagedResultDto<PaymentDto>(totalCount, dtos);
         }
 
-        [Authorize(LoanManagementPermissions.Borrowers.Edit)]
         public async Task RecalculateFinancialsAsync(Guid id)
         {
+            var lenderId = await GetCurrentLenderIdAsync();
+            var borrower = await _borrowerRepository.GetAsync(id);
+
+            // Verify borrower belongs to current lender
+            if (borrower.LenderId != lenderId)
+            {
+                throw new UnauthorizedAccessException("You do not have permission to update this borrower.");
+            }
+
             await _borrowerManager.UpdateFinancialSummaryAsync(id);
         }
 
         public async Task<bool> CheckIdNumberAvailabilityAsync(string idNumber)
         {
-            var exists = await _borrowerRepository.AnyAsync(b => b.IdNumber == idNumber);
+            var lenderId = await GetCurrentLenderIdAsync();
+            var exists = await _borrowerRepository.AnyAsync(b => b.LenderId == lenderId && b.IdNumber == idNumber);
             return !exists;
+        }
+
+        public async Task VerifyKycAsync(Guid borrowerId)
+        {
+            var lenderId = await GetCurrentLenderIdAsync();
+            var borrower = await _borrowerRepository.GetAsync(borrowerId);
+
+            if (borrower.LenderId != lenderId)
+            {
+                throw new UnauthorizedAccessException("You do not have permission to update this borrower.");
+            }
+
+            await _borrowerManager.UpdateKycStatusAsync(borrowerId, true);
+        }
+
+        public async Task SuspendBorrowerAsync(Guid borrowerId, string reason)
+        {
+            var lenderId = await GetCurrentLenderIdAsync();
+            var borrower = await _borrowerRepository.GetAsync(borrowerId);
+
+            if (borrower.LenderId != lenderId)
+            {
+                throw new UnauthorizedAccessException("You do not have permission to suspend this borrower.");
+            }
+
+            await _borrowerManager.SuspendBorrowerAsync(borrowerId, reason);
+        }
+
+        public async Task BlacklistBorrowerAsync(Guid borrowerId, string reason)
+        {
+            var lenderId = await GetCurrentLenderIdAsync();
+            var borrower = await _borrowerRepository.GetAsync(borrowerId);
+
+            if (borrower.LenderId != lenderId)
+            {
+                throw new UnauthorizedAccessException("You do not have permission to blacklist this borrower.");
+            }
+
+            await _borrowerManager.BlacklistBorrowerAsync(borrowerId, reason);
+        }
+
+        public async Task<decimal> GetDebtToIncomeRatioAsync(Guid borrowerId)
+        {
+            var lenderId = await GetCurrentLenderIdAsync();
+            var borrower = await _borrowerRepository.GetAsync(borrowerId);
+
+            if (borrower.LenderId != lenderId)
+            {
+                throw new UnauthorizedAccessException("You do not have permission to view this borrower's information.");
+            }
+
+            return await _borrowerManager.GetDebtToIncomeRatioAsync(borrowerId);
         }
     }
 }

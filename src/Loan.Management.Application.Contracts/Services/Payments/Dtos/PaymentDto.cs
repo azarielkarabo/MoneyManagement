@@ -6,7 +6,7 @@ namespace Loan.Management.Services.Payments.Dtos
 {
     public class PaymentDto : FullAuditedEntityDto<Guid>
     {
-        public Guid LoanId { get; set; }
+        public Guid CreditId { get; set; }
         public Guid BorrowerId { get; set; }
         public string BorrowerName { get; set; }
         public decimal Amount { get; set; }

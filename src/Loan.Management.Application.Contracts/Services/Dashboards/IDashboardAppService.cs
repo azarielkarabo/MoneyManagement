@@ -21,7 +21,7 @@ namespace Loan.Management.Services.Dashboards
         Task<DashboardSummaryDto> GetSummaryAsync();
 
         /// <summary>
-        /// Get loan status distribution
+        /// Get credit status distribution
         /// </summary>
         Task<LoanStatusDistributionDto> GetLoanDistributionAsync();
 
@@ -36,7 +36,7 @@ namespace Loan.Management.Services.Dashboards
         Task<MoneyFlowDto> GetMoneyFlowAsync(int months = 12);
 
         /// <summary>
-        /// Get recent transactions (loans and payments)
+        /// Get recent transactions (credits and payments)
         /// </summary>
         Task<List<RecentTransactionDto>> GetRecentTransactionsAsync(int count = 10);
 
@@ -46,7 +46,7 @@ namespace Loan.Management.Services.Dashboards
         Task<CollectionMetricsDto> GetCollectionMetricsAsync();
 
         /// <summary>
-        /// Get upcoming payments/due loans
+        /// Get upcoming payments/due credits
         /// </summary>
         Task<List<UpcomingPaymentDto>> GetUpcomingPaymentsAsync(int days = 30);
 
@@ -61,7 +61,7 @@ namespace Loan.Management.Services.Dashboards
         Task<PortfolioHealthDto> GetPortfolioHealthAsync();
 
         /// <summary>
-        /// Get loan aging analysis
+        /// Get credit aging analysis
         /// </summary>
         Task<LoanAgingDto> GetLoanAgingAsync();
 

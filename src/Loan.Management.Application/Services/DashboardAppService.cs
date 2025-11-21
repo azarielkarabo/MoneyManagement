@@ -1,4 +1,5 @@
-﻿using Loan.Management.Entities;
+﻿using Loan.Management.DomainServices;
+using Loan.Management.Entities;
 using Loan.Management.Enums;
 using Loan.Management.Permissions;
 using Loan.Management.Services.Dashboards;
@@ -7,31 +8,38 @@ using Microsoft.AspNetCore.Authorization;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using Volo.Abp.Application.Services;
 using Volo.Abp.Domain.Repositories;
+using Volo.Abp.Users;
 
 namespace Loan.Management.Services
 {
-    [Authorize(LoanManagementPermissions.Dashboard.Default)]
     public class DashboardAppService : ApplicationService, IDashboardAppService
     {
         private readonly IRepository<Borrower, Guid> _borrowerRepository;
-        private readonly IRepository<Entities.Loan, Guid> _loanRepository;
+        private readonly IRepository<Credit, Guid> _creditRepository;
         private readonly IRepository<Payment, Guid> _paymentRepository;
+        private readonly LenderManager _lenderManager;
 
         public DashboardAppService(
             IRepository<Borrower, Guid> borrowerRepository,
-            IRepository<Entities.Loan, Guid> loanRepository,
-            IRepository<Payment, Guid> paymentRepository)
+            IRepository<Credit, Guid> creditRepository,
+            IRepository<Payment, Guid> paymentRepository,
+            LenderManager lenderManager)
         {
             _borrowerRepository = borrowerRepository;
-            _loanRepository = loanRepository;
+            _creditRepository = creditRepository;
             _paymentRepository = paymentRepository;
+            _lenderManager = lenderManager;
         }
 
-        [Authorize(LoanManagementPermissions.Dashboard.ViewFinancials)]
+        private async Task<Guid> GetCurrentLenderIdAsync()
+        {
+            var lender = await _lenderManager.GetCurrentLenderAsync();
+            return lender.Id;
+        }
+
         public async Task<DashboardDto> GetDashboardDataAsync()
         {
             var dashboard = new DashboardDto
@@ -50,38 +58,40 @@ namespace Loan.Management.Services
 
         public async Task<DashboardSummaryDto> GetSummaryAsync()
         {
-            var loans = await _loanRepository.GetListAsync();
-            var payments = await _paymentRepository.GetListAsync();
-            var borrowers = await _borrowerRepository.GetListAsync();
+            var lenderId = await GetCurrentLenderIdAsync();
 
-            var activeLoans = loans.Where(l =>
-                l.Status == LoanStatus.Active ||
-                l.Status == LoanStatus.Overdue).ToList();
+            var credits = await _creditRepository.GetListAsync(c => c.LenderId == lenderId);
+            var borrowers = await _borrowerRepository.GetListAsync(b => b.LenderId == lenderId);
+            var payments = await _paymentRepository.GetListAsync();
+
+            var activeLoans = credits.Where(l =>
+                l.Status == CreditStatus.Active ||
+                l.Status == CreditStatus.Overdue).ToList();
 
             var currentMonth = DateTime.UtcNow.Month;
             var currentYear = DateTime.UtcNow.Year;
             var lastMonth = DateTime.UtcNow.AddMonths(-1);
 
             // Calculate totals
-            var totalLent = loans
-                .Where(l => l.Status != LoanStatus.Cancelled)
+            var totalLent = credits
+                .Where(l => l.Status != CreditStatus.Rejected && l.Status != CreditStatus.Suspended)
                 .Sum(l => l.TotalAmount);
 
             var totalOutstanding = activeLoans.Sum(l => l.OutstandingAmount);
 
-            var totalCollected = loans
-                .Where(l => l.Status != LoanStatus.Cancelled)
+            var totalCollected = credits
+                .Where(l => l.Status != CreditStatus.Rejected && l.Status != CreditStatus.Suspended)
                 .Sum(l => l.AmountPaid);
 
-            var totalInterestEarned = loans
-                .Where(l => l.Status != LoanStatus.Cancelled)
+            var totalInterestEarned = credits
+                .Where(l => l.Status != CreditStatus.Rejected && l.Status != CreditStatus.Suspended)
                 .Sum(l => l.InterestAmount);
 
             // Calculate previous month totals for trends
-            var previousMonthLent = loans
-                .Where(l => l.DisbursementDate.Month == lastMonth.Month &&
-                           l.DisbursementDate.Year == lastMonth.Year &&
-                           l.Status != LoanStatus.Cancelled)
+            var previousMonthLent = credits
+                .Where(l => l.IssuedDate.Month == lastMonth.Month &&
+                           l.IssuedDate.Year == lastMonth.Year &&
+                           l.Status != CreditStatus.Rejected && l.Status != CreditStatus.Suspended)
                 .Sum(l => l.TotalAmount);
 
             var totalLentGrowth = previousMonthLent > 0
@@ -93,16 +103,16 @@ namespace Loan.Management.Services
                 ? (totalCollected / totalLent) * 100
                 : 0;
 
-            var defaultRate = loans.Count > 0
-                ? (loans.Count(l => l.Status == LoanStatus.WriteOff) / (decimal)loans.Count) * 100
+            var defaultRate = credits.Count > 0
+                ? (credits.Count(l => l.Status == CreditStatus.Defaulted) / (decimal)credits.Count) * 100
                 : 0;
 
-            var averageLoanSize = loans.Any()
-                ? loans.Where(l => l.Status != LoanStatus.Cancelled).Average(l => l.TotalAmount)
+            var averageLoanSize = credits.Any()
+                ? credits.Where(l => l.Status != CreditStatus.Rejected).Average(l => l.TotalAmount)
                 : 0;
 
-            var averageInterestRate = loans.Any()
-                ? loans.Where(l => l.Status != LoanStatus.Cancelled).Average(l => l.InterestRate)
+            var averageInterestRate = credits.Any()
+                ? credits.Where(l => l.Status != CreditStatus.Rejected).Average(l => l.InterestRate)
                 : 0;
 
             return new DashboardSummaryDto
@@ -112,9 +122,9 @@ namespace Loan.Management.Services
                 TotalCollected = totalCollected,
                 TotalInterestEarned = totalInterestEarned,
 
-                ActiveLoansCount = loans.Count(l => l.Status == LoanStatus.Active),
-                OverdueLoansCount = loans.Count(l => l.Status == LoanStatus.Overdue),
-                PaidOffLoansCount = loans.Count(l => l.Status == LoanStatus.PaidOff),
+                ActiveLoansCount = credits.Count(l => l.Status == CreditStatus.Active),
+                OverdueLoansCount = credits.Count(l => l.Status == CreditStatus.Overdue),
+                PaidOffLoansCount = credits.Count(l => l.Status == CreditStatus.PaidOff),
 
                 TotalBorrowersCount = borrowers.Count,
                 ActiveBorrowersCount = borrowers.Count(b => b.Status == BorrowerStatus.Active),
@@ -128,9 +138,9 @@ namespace Loan.Management.Services
                 AverageInterestRate = averageInterestRate,
 
                 TotalLentGrowth = totalLentGrowth,
-                NewLoansThisMonth = loans.Count(l =>
-                    l.DisbursementDate.Month == currentMonth &&
-                    l.DisbursementDate.Year == currentYear),
+                NewLoansThisMonth = credits.Count(l =>
+                    l.IssuedDate.Month == currentMonth &&
+                    l.IssuedDate.Year == currentYear),
                 NewPaymentsThisMonth = payments.Count(p =>
                     p.PaymentDate.Month == currentMonth &&
                     p.PaymentDate.Year == currentYear)
@@ -139,29 +149,30 @@ namespace Loan.Management.Services
 
         public async Task<LoanStatusDistributionDto> GetLoanDistributionAsync()
         {
-            var loans = await _loanRepository.GetListAsync();
+            var lenderId = await GetCurrentLenderIdAsync();
+            var credits = await _creditRepository.GetListAsync(c => c.LenderId == lenderId);
 
-            var activeLoans = loans.Where(l => l.Status == LoanStatus.Active).ToList();
-            var overdueLoans = loans.Where(l => l.Status == LoanStatus.Overdue).ToList();
-            var paidOffLoans = loans.Where(l => l.Status == LoanStatus.PaidOff).ToList();
-            var cancelledLoans = loans.Where(l => l.Status == LoanStatus.Cancelled).ToList();
-            var writeOffLoans = loans.Where(l => l.Status == LoanStatus.WriteOff).ToList();
+            var activeLoans = credits.Where(l => l.Status == CreditStatus.Active).ToList();
+            var overdueLoans = credits.Where(l => l.Status == CreditStatus.Overdue).ToList();
+            var paidOffLoans = credits.Where(l => l.Status == CreditStatus.PaidOff).ToList();
+            var rejectedLoans = credits.Where(l => l.Status == CreditStatus.Rejected).ToList();
+            var suspendedLoans = credits.Where(l => l.Status == CreditStatus.Suspended).ToList();
 
-            var totalAmount = loans.Sum(l => l.TotalAmount);
+            var totalAmount = credits.Sum(l => l.TotalAmount);
 
             return new LoanStatusDistributionDto
             {
                 ActiveCount = activeLoans.Count,
                 OverdueCount = overdueLoans.Count,
                 PaidOffCount = paidOffLoans.Count,
-                CancelledCount = cancelledLoans.Count,
-                WriteOffCount = writeOffLoans.Count,
+                CancelledCount = rejectedLoans.Count,
+                WriteOffCount = suspendedLoans.Count,
 
                 ActiveAmount = activeLoans.Sum(l => l.OutstandingAmount),
                 OverdueAmount = overdueLoans.Sum(l => l.OutstandingAmount),
                 PaidOffAmount = paidOffLoans.Sum(l => l.TotalAmount),
-                CancelledAmount = cancelledLoans.Sum(l => l.TotalAmount),
-                WriteOffAmount = writeOffLoans.Sum(l => l.TotalAmount),
+                CancelledAmount = rejectedLoans.Sum(l => l.TotalAmount),
+                WriteOffAmount = suspendedLoans.Sum(l => l.TotalAmount),
 
                 ActivePercentage = totalAmount > 0
                     ? (activeLoans.Sum(l => l.TotalAmount) / totalAmount) * 100
@@ -177,19 +188,21 @@ namespace Loan.Management.Services
 
         public async Task<List<TopBorrowerDto>> GetTopBorrowersAsync(int count = 10)
         {
-            var borrowers = await _borrowerRepository.GetListAsync();
-            var loans = await _loanRepository.GetListAsync();
+            var lenderId = await GetCurrentLenderIdAsync();
+
+            var borrowers = await _borrowerRepository.GetListAsync(b => b.LenderId == lenderId);
+            var credits = await _creditRepository.GetListAsync(c => c.LenderId == lenderId);
             var payments = await _paymentRepository.GetListAsync();
 
             var topBorrowers = new List<TopBorrowerDto>();
 
             foreach (var borrower in borrowers.OrderByDescending(b => b.TotalBorrowed).Take(count))
             {
-                var borrowerLoans = loans.Where(l => l.BorrowerId == borrower.Id).ToList();
+                var borrowerLoans = credits.Where(l => l.BorrowerId == borrower.Id).ToList();
                 var borrowerPayments = payments.Where(p => p.BorrowerId == borrower.Id).ToList();
 
                 var activeLoansCount = borrowerLoans.Count(l =>
-                    l.Status == LoanStatus.Active || l.Status == LoanStatus.Overdue);
+                    l.Status == CreditStatus.Active || l.Status == CreditStatus.Overdue);
 
                 var lastPayment = borrowerPayments.OrderByDescending(p => p.PaymentDate).FirstOrDefault();
                 var daysSinceLastPayment = lastPayment != null
@@ -200,14 +213,13 @@ namespace Loan.Management.Services
                     ? (borrower.Paid / borrower.TotalBorrowed) * 100
                     : 0;
 
-                // Calculate credit score
                 var creditScore = CalculateCreditScore(borrower, borrowerLoans, paymentRate);
 
                 topBorrowers.Add(new TopBorrowerDto
                 {
                     BorrowerId = borrower.Id,
-                    Name = borrower.User.Name,
-                    Phone = borrower.User.PhoneNumber,
+                    Name = borrower.FullName,
+                    Phone = borrower.PhoneNumber,
                     TotalBorrowed = borrower.TotalBorrowed,
                     Outstanding = borrower.Outstanding,
                     Paid = borrower.Paid,
@@ -224,10 +236,11 @@ namespace Loan.Management.Services
 
         public async Task<MoneyFlowDto> GetMoneyFlowAsync(int months = 12)
         {
-            var loans = await _loanRepository.GetListAsync();
+            var lenderId = await GetCurrentLenderIdAsync();
+
+            var credits = await _creditRepository.GetListAsync(c => c.LenderId == lenderId);
             var payments = await _paymentRepository.GetListAsync();
 
-            var startDate = DateTime.UtcNow.AddMonths(-months);
             var monthlyData = new List<MonthlyFlowDto>();
 
             for (int i = months - 1; i >= 0; i--)
@@ -236,10 +249,10 @@ namespace Loan.Management.Services
                 var month = targetDate.Month;
                 var year = targetDate.Year;
 
-                var monthLoans = loans
-                    .Where(l => l.DisbursementDate.Month == month &&
-                               l.DisbursementDate.Year == year &&
-                               l.Status != LoanStatus.Cancelled)
+                var monthLoans = credits
+                    .Where(l => l.IssuedDate.Month == month &&
+                               l.IssuedDate.Year == year &&
+                               l.Status != CreditStatus.Rejected && l.Status != CreditStatus.Suspended)
                     .ToList();
 
                 var monthPayments = payments
@@ -278,33 +291,41 @@ namespace Loan.Management.Services
 
         public async Task<List<RecentTransactionDto>> GetRecentTransactionsAsync(int count = 10)
         {
-            var loans = await _loanRepository.GetListAsync();
+            var lenderId = await GetCurrentLenderIdAsync();
+
+            var credits = await _creditRepository.GetListAsync(c => c.LenderId == lenderId);
             var payments = await _paymentRepository.GetListAsync();
+            var borrowers = await _borrowerRepository.GetListAsync(b => b.LenderId == lenderId);
 
             var transactions = new List<RecentTransactionDto>();
 
-            // Add recent loans
-            foreach (var loan in loans.OrderByDescending(l => l.CreationTime).Take(count / 2))
+            // Add recent credits
+            foreach (var credit in credits.OrderByDescending(l => l.CreationTime).Take(count / 2))
             {
+                var borrower = borrowers.FirstOrDefault(b => b.Id == credit.BorrowerId);
                 transactions.Add(new RecentTransactionDto
                 {
-                    Id = loan.Id,
-                    BorrowerName = loan.BorrowerName,
-                    Amount = loan.TotalAmount,
-                    Date = loan.DisbursementDate,
-                    Type = "Loan",
-                    Description = loan.Description ?? $"Loan of R{loan.PrincipalAmount:N2} at {loan.InterestRate}% interest",
-                    Status = loan.Status.ToString()
+                    Id = credit.Id,
+                    BorrowerName = borrower?.FullName ?? "Unknown",
+                    Amount = credit.TotalAmount,
+                    Date = credit.IssuedDate,
+                    Type = "Credit",
+                    Description = credit.Purpose ?? $"Credit of R{credit.PrincipalAmount:N2} at {credit.InterestRate}% interest",
+                    Status = credit.Status.ToString()
                 });
             }
 
             // Add recent payments
             foreach (var payment in payments.OrderByDescending(p => p.PaymentDate).Take(count / 2))
             {
+                var credit = credits.FirstOrDefault(c => c.Id == payment.CreditId);
+                if (credit == null) continue;
+
+                var borrower = borrowers.FirstOrDefault(b => b.Id == credit.BorrowerId);
                 transactions.Add(new RecentTransactionDto
                 {
                     Id = payment.Id,
-                    BorrowerName = payment.BorrowerName,
+                    BorrowerName = borrower?.FullName ?? "Unknown",
                     Amount = payment.Amount,
                     Date = payment.PaymentDate,
                     Type = "Payment",
@@ -321,7 +342,9 @@ namespace Loan.Management.Services
 
         public async Task<CollectionMetricsDto> GetCollectionMetricsAsync()
         {
-            var loans = await _loanRepository.GetListAsync();
+            var lenderId = await GetCurrentLenderIdAsync();
+
+            var credits = await _creditRepository.GetListAsync(c => c.LenderId == lenderId);
             var payments = await _paymentRepository.GetListAsync();
 
             var currentMonth = DateTime.UtcNow.Month;
@@ -335,8 +358,7 @@ namespace Loan.Management.Services
             var amountCollectedThisMonth = monthPayments.Sum(p => p.Amount);
             var paymentsThisMonth = monthPayments.Count;
 
-            // Calculate target (expected outstanding at start of month)
-            var targetCollection = loans
+            var targetCollection = credits
                 .Where(l => l.DueDate.Month == currentMonth && l.DueDate.Year == currentYear)
                 .Sum(l => l.OutstandingAmount);
 
@@ -344,7 +366,6 @@ namespace Loan.Management.Services
                 ? (amountCollectedThisMonth / targetCollection) * 100
                 : 0;
 
-            // Calculate payment method distribution
             var paymentMethodDistribution = payments
                 .GroupBy(p => p.Method)
                 .Select(g => new PaymentMethodDistributionDto
@@ -357,20 +378,19 @@ namespace Loan.Management.Services
                 .OrderByDescending(p => p.Amount)
                 .ToList();
 
-            var totalPaid = loans.Sum(l => l.AmountPaid);
-            var totalLent = loans.Where(l => l.Status != LoanStatus.Cancelled).Sum(l => l.TotalAmount);
+            var totalPaid = credits.Sum(l => l.AmountPaid);
+            var totalLent = credits.Where(l => l.Status != CreditStatus.Rejected && l.Status != CreditStatus.Suspended).Sum(l => l.TotalAmount);
             var collectionEfficiency = totalLent > 0 ? (totalPaid / totalLent) * 100 : 0;
 
-            // On-time payment rate (payments made before or on due date)
             var onTimePayments = 0;
             var latePayments = 0;
 
             foreach (var payment in payments)
             {
-                var loan = loans.FirstOrDefault(l => l.Id == payment.LoanId);
-                if (loan != null)
+                var credit = credits.FirstOrDefault(l => l.Id == payment.CreditId);
+                if (credit != null)
                 {
-                    if (payment.PaymentDate <= loan.DueDate)
+                    if (payment.PaymentDate <= credit.DueDate)
                         onTimePayments++;
                     else
                         latePayments++;
@@ -400,14 +420,16 @@ namespace Loan.Management.Services
 
         public async Task<List<UpcomingPaymentDto>> GetUpcomingPaymentsAsync(int days = 30)
         {
-            var loans = await _loanRepository.GetListAsync();
-            var borrowers = await _borrowerRepository.GetListAsync();
+            var lenderId = await GetCurrentLenderIdAsync();
+
+            var credits = await _creditRepository.GetListAsync(c => c.LenderId == lenderId);
+            var borrowers = await _borrowerRepository.GetListAsync(b => b.LenderId == lenderId);
 
             var today = DateTime.UtcNow.Date;
             var futureDate = today.AddDays(days);
 
-            var upcomingLoans = loans
-                .Where(l => (l.Status == LoanStatus.Active || l.Status == LoanStatus.Overdue) &&
+            var upcomingLoans = credits
+                .Where(l => (l.Status == CreditStatus.Active || l.Status == CreditStatus.Overdue) &&
                            l.OutstandingAmount > 0 &&
                            l.DueDate.Date >= today &&
                            l.DueDate.Date <= futureDate)
@@ -415,24 +437,24 @@ namespace Loan.Management.Services
 
             var upcomingPayments = new List<UpcomingPaymentDto>();
 
-            foreach (var loan in upcomingLoans.OrderBy(l => l.DueDate))
+            foreach (var credit in upcomingLoans.OrderBy(l => l.DueDate))
             {
-                var borrower = borrowers.FirstOrDefault(b => b.Id == loan.BorrowerId);
+                var borrower = borrowers.FirstOrDefault(b => b.Id == credit.BorrowerId);
                 if (borrower == null) continue;
 
-                var daysUntilDue = (loan.DueDate.Date - today).Days;
+                var daysUntilDue = (credit.DueDate.Date - today).Days;
 
                 var priority = daysUntilDue <= 7 ? "High" :
                               daysUntilDue <= 14 ? "Medium" : "Low";
 
                 upcomingPayments.Add(new UpcomingPaymentDto
                 {
-                    LoanId = loan.Id,
+                    CreditId = credit.Id,
                     BorrowerId = borrower.Id,
-                    BorrowerName = borrower.User.Name,
-                    BorrowerPhone = borrower.User.PhoneNumber,
-                    OutstandingAmount = loan.OutstandingAmount,
-                    DueDate = loan.DueDate,
+                    BorrowerName = borrower.FullName,
+                    BorrowerPhone = borrower.PhoneNumber,
+                    OutstandingAmount = credit.OutstandingAmount,
+                    DueDate = credit.DueDate,
                     DaysUntilDue = daysUntilDue,
                     Priority = priority
                 });
@@ -443,8 +465,10 @@ namespace Loan.Management.Services
 
         public async Task<BorrowerAnalyticsDto> GetBorrowerAnalyticsAsync()
         {
-            var borrowers = await _borrowerRepository.GetListAsync();
-            var loans = await _loanRepository.GetListAsync();
+            var lenderId = await GetCurrentLenderIdAsync();
+
+            var borrowers = await _borrowerRepository.GetListAsync(b => b.LenderId == lenderId);
+            var credits = await _creditRepository.GetListAsync(c => c.LenderId == lenderId);
 
             var goodStanding = borrowers.Count(b => b.Outstanding == 0 || b.Status == BorrowerStatus.PaidOff);
             var atRisk = borrowers.Count(b => b.Outstanding > 0 && b.Status == BorrowerStatus.Active);
@@ -454,13 +478,11 @@ namespace Loan.Management.Services
                 ? borrowers.Where(b => b.Outstanding > 0).Average(b => b.Outstanding)
                 : 0;
 
-            // Calculate average loan duration
-            var completedLoans = loans.Where(l => l.Status == LoanStatus.PaidOff).ToList();
+            var completedLoans = credits.Where(l => l.Status == CreditStatus.PaidOff).ToList();
             var avgDuration = completedLoans.Any()
-                ? completedLoans.Average(l => (l.DueDate - l.DisbursementDate).Days)
+                ? completedLoans.Average(l => (l.DueDate - l.IssuedDate).Days)
                 : 0;
 
-            // Create borrower segments
             var segments = new List<BorrowerSegmentDto>
             {
                 new BorrowerSegmentDto
@@ -468,21 +490,21 @@ namespace Loan.Management.Services
                     SegmentName = "Low Risk (< R5,000)",
                     Count = borrowers.Count(b => b.Outstanding < 5000),
                     TotalOutstanding = borrowers.Where(b => b.Outstanding < 5000).Sum(b => b.Outstanding),
-                    Percentage = (borrowers.Count(b => b.Outstanding < 5000) / (decimal)borrowers.Count) * 100
+                    Percentage = borrowers.Any() ? (borrowers.Count(b => b.Outstanding < 5000) / (decimal)borrowers.Count) * 100 : 0
                 },
                 new BorrowerSegmentDto
                 {
                     SegmentName = "Medium Risk (R5,000 - R20,000)",
                     Count = borrowers.Count(b => b.Outstanding >= 5000 && b.Outstanding < 20000),
                     TotalOutstanding = borrowers.Where(b => b.Outstanding >= 5000 && b.Outstanding < 20000).Sum(b => b.Outstanding),
-                    Percentage = (borrowers.Count(b => b.Outstanding >= 5000 && b.Outstanding < 20000) / (decimal)borrowers.Count) * 100
+                    Percentage = borrowers.Any() ? (borrowers.Count(b => b.Outstanding >= 5000 && b.Outstanding < 20000) / (decimal)borrowers.Count) * 100 : 0
                 },
                 new BorrowerSegmentDto
                 {
                     SegmentName = "High Risk (> R20,000)",
                     Count = borrowers.Count(b => b.Outstanding >= 20000),
                     TotalOutstanding = borrowers.Where(b => b.Outstanding >= 20000).Sum(b => b.Outstanding),
-                    Percentage = (borrowers.Count(b => b.Outstanding >= 20000) / (decimal)borrowers.Count) * 100
+                    Percentage = borrowers.Any() ? (borrowers.Count(b => b.Outstanding >= 20000) / (decimal)borrowers.Count) * 100 : 0
                 }
             };
 
@@ -500,37 +522,36 @@ namespace Loan.Management.Services
 
         public async Task<PortfolioHealthDto> GetPortfolioHealthAsync()
         {
-            var loans = await _loanRepository.GetListAsync();
+            var lenderId = await GetCurrentLenderIdAsync();
+            var credits = await _creditRepository.GetListAsync(c => c.LenderId == lenderId);
 
-            var totalOutstanding = loans
-                .Where(l => l.Status == LoanStatus.Active || l.Status == LoanStatus.Overdue)
+            var totalOutstanding = credits
+                .Where(l => l.Status == CreditStatus.Active || l.Status == CreditStatus.Overdue)
                 .Sum(l => l.OutstandingAmount);
 
-            var overdueLoans = loans.Where(l => l.Status == LoanStatus.Overdue).ToList();
+            var overdueLoans = credits.Where(l => l.Status == CreditStatus.Overdue).ToList();
             var overdueAmount = overdueLoans.Sum(l => l.OutstandingAmount);
 
             var portfolioAtRisk = totalOutstanding > 0
                 ? (overdueAmount / totalOutstanding) * 100
                 : 0;
 
-            // Calculate PAR buckets
-            var par30Amount = overdueLoans.Where(l => l.DaysOverdue >= 30).Sum(l => l.OutstandingAmount);
-            var par60Amount = overdueLoans.Where(l => l.DaysOverdue >= 60).Sum(l => l.OutstandingAmount);
-            var par90Amount = overdueLoans.Where(l => l.DaysOverdue >= 90).Sum(l => l.OutstandingAmount);
+            var par30Amount = overdueLoans.Where(l => (DateTime.UtcNow.Date - l.DueDate.Date).Days >= 30).Sum(l => l.OutstandingAmount);
+            var par60Amount = overdueLoans.Where(l => (DateTime.UtcNow.Date - l.DueDate.Date).Days >= 60).Sum(l => l.OutstandingAmount);
+            var par90Amount = overdueLoans.Where(l => (DateTime.UtcNow.Date - l.DueDate.Date).Days >= 90).Sum(l => l.OutstandingAmount);
 
             var par30 = totalOutstanding > 0 ? (par30Amount / totalOutstanding) * 100 : 0;
             var par60 = totalOutstanding > 0 ? (par60Amount / totalOutstanding) * 100 : 0;
             var par90 = totalOutstanding > 0 ? (par90Amount / totalOutstanding) * 100 : 0;
 
-            var writeOffRatio = loans.Any()
-                ? (loans.Count(l => l.Status == LoanStatus.WriteOff) / (decimal)loans.Count) * 100
+            var writeOffRatio = credits.Any()
+                ? (credits.Count(l => l.Status == CreditStatus.Defaulted) / (decimal)credits.Count) * 100
                 : 0;
 
-            var delinquencyRate = loans.Any()
-                ? (loans.Count(l => l.Status == LoanStatus.Overdue) / (decimal)loans.Count) * 100
+            var delinquencyRate = credits.Any()
+                ? (credits.Count(l => l.Status == CreditStatus.Overdue) / (decimal)credits.Count) * 100
                 : 0;
 
-            // Determine overall health
             var overallHealth = portfolioAtRisk < 5 ? "Excellent" :
                                portfolioAtRisk < 10 ? "Good" :
                                portfolioAtRisk < 20 ? "Fair" : "Poor";
@@ -549,7 +570,7 @@ namespace Loan.Management.Services
             if (par90 > 10)
             {
                 healthIndicators.Add("✗ High PAR90 indicates severe delinquency issues");
-                recommendations.Add("Consider debt restructuring or write-offs for severely overdue loans");
+                recommendations.Add("Consider debt restructuring or write-offs for severely overdue credits");
             }
 
             if (delinquencyRate < 10)
@@ -571,23 +592,24 @@ namespace Loan.Management.Services
 
         public async Task<LoanAgingDto> GetLoanAgingAsync()
         {
-            var loans = await _loanRepository.GetListAsync();
+            var lenderId = await GetCurrentLenderIdAsync();
+            var credits = await _creditRepository.GetListAsync(c => c.LenderId == lenderId);
             var today = DateTime.UtcNow.Date;
 
-            var current = loans.Where(l =>
-                l.Status == LoanStatus.Active &&
+            var current = credits.Where(l =>
+                l.Status == CreditStatus.Active &&
                 (l.DueDate.Date - today).Days >= 0 &&
                 (l.DueDate.Date - today).Days <= 30).ToList();
 
-            var days30_60 = loans.Where(l =>
+            var days30_60 = credits.Where(l =>
                 (today - l.DueDate.Date).Days >= 30 &&
                 (today - l.DueDate.Date).Days < 60).ToList();
 
-            var days60_90 = loans.Where(l =>
+            var days60_90 = credits.Where(l =>
                 (today - l.DueDate.Date).Days >= 60 &&
                 (today - l.DueDate.Date).Days < 90).ToList();
 
-            var days90Plus = loans.Where(l =>
+            var days90Plus = credits.Where(l =>
                 (today - l.DueDate.Date).Days >= 90).ToList();
 
             return new LoanAgingDto
@@ -626,36 +648,28 @@ namespace Loan.Management.Services
         {
             var dashboard = await GetDashboardDataAsync();
 
-            // TODO: Implement Excel export using EPPlus or ClosedXML
-            // This is a placeholder
             var jsonData = System.Text.Json.JsonSerializer.Serialize(dashboard);
             return System.Text.Encoding.UTF8.GetBytes(jsonData);
         }
 
-        // Helper Methods
-
-        private string CalculateCreditScore(Borrower borrower, List<Entities.Loan> loans, decimal paymentRate)
+        private string CalculateCreditScore(Borrower borrower, List<Credit> credits, decimal paymentRate)
         {
             var score = 0;
 
-            // Payment rate scoring (40 points)
             if (paymentRate >= 90) score += 40;
             else if (paymentRate >= 70) score += 30;
             else if (paymentRate >= 50) score += 20;
             else score += 10;
 
-            // Overdue loan penalty (30 points)
-            var overdueLoans = loans.Count(l => l.Status == LoanStatus.Overdue);
+            var overdueLoans = credits.Count(l => l.Status == CreditStatus.Overdue);
             if (overdueLoans == 0) score += 30;
             else if (overdueLoans == 1) score += 20;
             else if (overdueLoans == 2) score += 10;
 
-            // Total borrowed (30 points)
             if (borrower.TotalBorrowed >= 50000) score += 30;
             else if (borrower.TotalBorrowed >= 20000) score += 20;
             else if (borrower.TotalBorrowed >= 10000) score += 10;
 
-            // Classify score
             if (score >= 80) return "Good";
             if (score >= 50) return "Fair";
             return "Poor";

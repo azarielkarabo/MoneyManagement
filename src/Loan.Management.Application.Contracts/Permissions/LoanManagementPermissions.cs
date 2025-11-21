@@ -12,9 +12,9 @@ public static class LoanManagementPermissions
         public const string ViewFinancials = Default + ".ViewFinancials";
     }
 
-    public static class Loans
+    public static class Credits
     {
-        public const string Default = GroupName + ".Loans";
+        public const string Default = GroupName + ".credits";
         public const string Create = Default + ".Create";
         public const string Edit = Default + ".Edit";
         public const string Delete = Default + ".Delete";

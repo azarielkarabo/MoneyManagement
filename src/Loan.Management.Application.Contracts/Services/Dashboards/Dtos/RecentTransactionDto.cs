@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace Loan.Management.Services.Dashboards.Dtos
 {
     /// <summary>
-    /// Recent transaction (loan or payment)
+    /// Recent transaction (credit or payment)
     /// </summary>
     public class RecentTransactionDto
     {

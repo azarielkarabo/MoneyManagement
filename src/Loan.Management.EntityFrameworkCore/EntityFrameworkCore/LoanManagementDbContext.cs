@@ -28,7 +28,6 @@ public class LoanManagementDbContext :
 {
     /* Add DbSet properties for your Aggregate Roots / Entities here. */
 
-
     #region Entities from the modules
 
     // Identity
@@ -47,9 +46,10 @@ public class LoanManagementDbContext :
 
     #endregion
 
-
+    // Loan Management Entities
+    public DbSet<Lender> Lenders { get; set; }
     public DbSet<Borrower> Borrowers { get; set; }
-    public DbSet<Entities.Loan> Loans { get; set; }
+    public DbSet<Credit> Credits { get; set; }
     public DbSet<Payment> Payments { get; set; }
 
     public LoanManagementDbContext(DbContextOptions<LoanManagementDbContext> options)
@@ -64,76 +64,251 @@ public class LoanManagementDbContext :
 
         /* Include modules to your migration db context */
 
+        // ============ Lender Configuration ============
+        builder.Entity<Lender>(b =>
+        {
+            b.ToTable("Lenders");
+            b.ConfigureByConvention();
+
+            b.Property(x => x.Position)
+                .IsRequired()
+                .HasMaxLength(100);
+
+            b.Property(x => x.MaxLoanApprovalAmount)
+                .HasColumnType("decimal(18,2)");
+
+            b.HasOne(x => x.User)
+                .WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            b.HasIndex(x => x.UserId).IsUnique();
+            b.HasIndex(x => x.Position);
+
+            b.Navigation(x => x.User).AutoInclude();
+        });
+
+        // ============ Borrower Configuration ============
         builder.Entity<Borrower>(b =>
         {
             b.ToTable("Borrowers");
             b.ConfigureByConvention();
 
-            b.Property(x => x.Address).HasMaxLength(512);
-            b.Property(x => x.IdNumber).IsRequired().HasMaxLength(13);
+            // Personal Information
+            b.Property(x => x.FirstName)
+                .IsRequired()
+                .HasMaxLength(100);
 
-            b.Property(x => x.TotalBorrowed).HasColumnType("decimal(18,2)");
-            b.Property(x => x.Outstanding).HasColumnType("decimal(18,2)");
-            b.Property(x => x.Paid).HasColumnType("decimal(18,2)");
+            b.Property(x => x.LastName)
+                .IsRequired()
+                .HasMaxLength(100);
 
+            b.Property(x => x.FullName)
+                .IsRequired()
+                .HasMaxLength(200);
+
+            b.Property(x => x.DateOfBirth)
+                .IsRequired();
+
+            // Identification
+            b.Property(x => x.IdNumber)
+                .IsRequired()
+                .HasMaxLength(13);
+
+            b.Property(x => x.IdExpiryDate);
+
+            // Contact Information
+            b.Property(x => x.EmailAddress)
+                .IsRequired()
+                .HasMaxLength(256);
+
+            b.Property(x => x.PhoneNumber)
+                .IsRequired()
+                .HasMaxLength(20);
+
+            b.Property(x => x.AlternativePhoneNumber)
+                .HasMaxLength(20);
+
+            // Address Information
+            b.Property(x => x.StreetAddress)
+                .IsRequired()
+                .HasMaxLength(500);
+
+            b.Property(x => x.City)
+                .IsRequired()
+                .HasMaxLength(100);
+
+            b.Property(x => x.Province)
+                .IsRequired()
+                .HasMaxLength(100);
+
+            b.Property(x => x.PostalCode)
+                .IsRequired()
+                .HasMaxLength(20);
+
+            b.Property(x => x.Country)
+                .IsRequired()
+                .HasMaxLength(100);
+
+            // Employment & Income
+            b.Property(x => x.Employer)
+                .HasMaxLength(200);
+
+            b.Property(x => x.JobTitle)
+                .HasMaxLength(200);
+
+            b.Property(x => x.MonthlyIncome)
+                .IsRequired()
+                .HasColumnType("decimal(18,2)");
+
+            b.Property(x => x.EmploymentStartDate);
+
+            // Emergency Contact
+            b.Property(x => x.EmergencyContactName)
+                .HasMaxLength(200);
+
+            b.Property(x => x.EmergencyContactPhone)
+                .HasMaxLength(20);
+
+            b.Property(x => x.EmergencyContactRelationship)
+                .HasMaxLength(100);
+
+            // Financial Summary
+            b.Property(x => x.TotalBorrowed)
+                .HasColumnType("decimal(18,2)");
+
+            b.Property(x => x.Outstanding)
+                .HasColumnType("decimal(18,2)");
+
+            b.Property(x => x.Paid)
+                .HasColumnType("decimal(18,2)");
+
+            b.Property(x => x.DefaultAmount)
+                .HasColumnType("decimal(18,2)");
+
+            // Miscellaneous
+            b.Property(x => x.Notes)
+                .HasMaxLength(1000);
+
+            // Relationships
+            b.HasOne(x => x.Lender)
+                .WithMany()
+                .HasForeignKey(x => x.LenderId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Indexes
+            b.HasIndex(x => x.LenderId);
             b.HasIndex(x => x.IdNumber).IsUnique();
             b.HasIndex(x => x.Status);
+            b.HasIndex(x => x.EmailAddress);
+            b.HasIndex(x => x.PhoneNumber);
+            b.HasIndex(x => new { x.LenderId, x.Status });
+            b.HasIndex(x => x.IsKycVerified);
         });
 
-        // Loan Configuration
-        builder.Entity<Entities.Loan>(b =>
+        // ============ Credit Configuration ============
+        builder.Entity<Credit>(b =>
         {
-            b.ToTable("Loans");
+            b.ToTable("Credits");
             b.ConfigureByConvention();
 
-            b.Property(x => x.BorrowerName).IsRequired().HasMaxLength(256);
-            b.Property(x => x.Description).HasMaxLength(1000);
+            // Loan Details
+            b.Property(x => x.PrincipalAmount)
+                .IsRequired()
+                .HasColumnType("decimal(18,2)");
 
-            b.Property(x => x.PrincipalAmount).HasColumnType("decimal(18,2)");
-            b.Property(x => x.InterestRate).HasColumnType("decimal(5,2)");
-            b.Property(x => x.InterestAmount).HasColumnType("decimal(18,2)");
-            b.Property(x => x.TotalAmount).HasColumnType("decimal(18,2)");
-            b.Property(x => x.AmountPaid).HasColumnType("decimal(18,2)");
-            b.Property(x => x.OutstandingAmount).HasColumnType("decimal(18,2)");
+            b.Property(x => x.InterestRate)
+                .IsRequired()
+                .HasColumnType("decimal(5,2)");
 
+            b.Property(x => x.TermMonths)
+                .IsRequired();
+
+            // Calculated Amounts
+            b.Property(x => x.InterestAmount)
+                .IsRequired()
+                .HasColumnType("decimal(18,2)");
+
+            b.Property(x => x.TotalAmount)
+                .IsRequired()
+                .HasColumnType("decimal(18,2)");
+
+            // Payment Tracking
+            b.Property(x => x.AmountPaid)
+                .IsRequired()
+                .HasColumnType("decimal(18,2)");
+
+            b.Property(x => x.OutstandingAmount)
+                .IsRequired()
+                .HasColumnType("decimal(18,2)");
+
+            // Optional Fields
+            b.Property(x => x.Purpose)
+                .HasMaxLength(500);
+
+            b.Property(x => x.Notes)
+                .HasMaxLength(1000);
+
+            // Relationships
             b.HasOne(x => x.Borrower)
-                .WithMany(x => x.Loans)
+                .WithMany(x => x.Credits)
                 .HasForeignKey(x => x.BorrowerId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            b.HasOne(x => x.Lender)
+                .WithMany()
+                .HasForeignKey(x => x.LenderId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Indexes
+            b.HasIndex(x => x.LenderId);
             b.HasIndex(x => x.BorrowerId);
             b.HasIndex(x => x.Status);
             b.HasIndex(x => x.DueDate);
+            b.HasIndex(x => x.IssuedDate);
             b.HasIndex(x => new { x.Status, x.DueDate });
+            b.HasIndex(x => new { x.LenderId, x.Status });
+            b.HasIndex(x => new { x.BorrowerId, x.Status });
         });
 
-        // Payment Configuration
+        // ============ Payment Configuration ============
         builder.Entity<Payment>(b =>
         {
             b.ToTable("Payments");
             b.ConfigureByConvention();
 
-            b.Property(x => x.BorrowerName).IsRequired().HasMaxLength(256);
-            b.Property(x => x.Description).HasMaxLength(500);
+            b.Property(x => x.BorrowerName)
+                .IsRequired()
+                .HasMaxLength(256);
 
-            b.Property(x => x.Amount).HasColumnType("decimal(18,2)");
-            b.Property(x => x.PreviousOutstanding).HasColumnType("decimal(18,2)");
-            b.Property(x => x.NewOutstanding).HasColumnType("decimal(18,2)");
+            b.Property(x => x.Description)
+                .HasMaxLength(500);
 
-            b.HasOne(x => x.Loan)
-                .WithMany(x => x.Payments)
-                .HasForeignKey(x => x.LoanId)
-                .OnDelete(DeleteBehavior.Restrict);
+            b.Property(x => x.Amount)
+                .IsRequired()
+                .HasColumnType("decimal(18,2)");
+
+            b.Property(x => x.PreviousOutstanding)
+                .IsRequired()
+                .HasColumnType("decimal(18,2)");
+
+            b.Property(x => x.NewOutstanding)
+                .IsRequired()
+                .HasColumnType("decimal(18,2)");
+
 
             b.HasOne(x => x.Borrower)
                 .WithMany(x => x.Payments)
                 .HasForeignKey(x => x.BorrowerId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            b.HasIndex(x => x.LoanId);
+            // Indexes
+            b.HasIndex(x => x.CreditId);
             b.HasIndex(x => x.BorrowerId);
             b.HasIndex(x => x.PaymentDate);
             b.HasIndex(x => x.Method);
+            b.HasIndex(x => new { x.BorrowerId, x.PaymentDate });
+            b.HasIndex(x => new { x.CreditId, x.PaymentDate });
         });
 
         builder.ConfigurePermissionManagement();

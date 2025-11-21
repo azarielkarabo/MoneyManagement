@@ -1,5 +1,5 @@
 ﻿using Loan.Management.Services.Borrowers.Dtos;
-using Loan.Management.Services.Loans.Dtos;
+using Loan.Management.Services.credits.Dtos;
 using Loan.Management.Services.Payments.Dtos;
 using System;
 using System.Threading.Tasks;
@@ -22,7 +22,7 @@ namespace Loan.Management.Services.Borrowers
 
         Task<BorrowerDto> GetWithDetailsAsync(Guid id);
 
-        Task<PagedResultDto<LoanDto>> GetBorrowerLoansAsync(Guid borrowerId, GetLoansInput input);
+        Task<PagedResultDto<CreditDto>> GetBorrowerLoansAsync(Guid borrowerId, GetCreditsInput input);
 
         Task<PagedResultDto<PaymentDto>> GetBorrowerPaymentsAsync(Guid borrowerId, GetPaymentsInput input);
 

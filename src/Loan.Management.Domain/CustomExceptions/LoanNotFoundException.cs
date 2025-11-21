@@ -6,10 +6,10 @@ namespace Loan.Management.CustomExceptions
     // Loan Exceptions
     public class LoanNotFoundException : BusinessException
     {
-        public LoanNotFoundException(Guid loanId)
+        public LoanNotFoundException(Guid CreditId)
             : base("LoanManagement:LoanNotFound")
         {
-            WithData("LoanId", loanId);
+            WithData("CreditId", CreditId);
         }
     }
 }
