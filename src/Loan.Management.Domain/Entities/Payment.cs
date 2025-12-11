@@ -6,6 +6,7 @@ namespace Loan.Management.Entities
 {
     public class Payment : FullAuditedAggregateRoot<Guid>
     {
+        public Guid LenderId { get; set; }
         public Guid CreditId { get; set; }
         public Guid BorrowerId { get; set; }
         public string BorrowerName { get; set; }
@@ -20,7 +21,8 @@ namespace Loan.Management.Entities
         public PaymentMethod Method { get; set; }
 
         // Navigation properties
-        public Credit Credit{ get; set; }
+        public Lender Lender { get; set; }
+        public Credit Credit { get; set; }
         public Borrower Borrower { get; set; }
 
         protected Payment()
@@ -29,6 +31,7 @@ namespace Loan.Management.Entities
 
         public Payment(
             Guid id,
+            Guid lenderId,
             Guid creditId,
             Guid borrowerId,
             string borrowerName,
@@ -39,7 +42,8 @@ namespace Loan.Management.Entities
             string description = null
         ) : base(id)
         {
-            CreditId= creditId;
+            LenderId = lenderId;
+            CreditId = creditId;
             BorrowerId = borrowerId;
             BorrowerName = borrowerName;
             Amount = amount;

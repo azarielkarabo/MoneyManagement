@@ -152,6 +152,7 @@ namespace Loan.Management.Services
             // Create payment entity
             var payment = new Payment(
                 GuidGenerator.Create(),
+                lenderId,
                 input.CreditId,
                 credit.BorrowerId,
                 borrower.FullName,

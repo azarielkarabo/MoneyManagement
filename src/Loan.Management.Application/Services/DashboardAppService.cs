@@ -62,7 +62,7 @@ namespace Loan.Management.Services
 
             var credits = await _creditRepository.GetListAsync(c => c.LenderId == lenderId);
             var borrowers = await _borrowerRepository.GetListAsync(b => b.LenderId == lenderId);
-            var payments = await _paymentRepository.GetListAsync();
+            var payments = await _paymentRepository.GetListAsync(b => b.LenderId == lenderId);
 
             var activeLoans = credits.Where(l =>
                 l.Status == CreditStatus.Active ||
@@ -192,7 +192,7 @@ namespace Loan.Management.Services
 
             var borrowers = await _borrowerRepository.GetListAsync(b => b.LenderId == lenderId);
             var credits = await _creditRepository.GetListAsync(c => c.LenderId == lenderId);
-            var payments = await _paymentRepository.GetListAsync();
+            var payments = await _paymentRepository.GetListAsync(p => p.LenderId == lenderId);
 
             var topBorrowers = new List<TopBorrowerDto>();
 
@@ -239,7 +239,7 @@ namespace Loan.Management.Services
             var lenderId = await GetCurrentLenderIdAsync();
 
             var credits = await _creditRepository.GetListAsync(c => c.LenderId == lenderId);
-            var payments = await _paymentRepository.GetListAsync();
+            var payments = await _paymentRepository.GetListAsync(p => p.LenderId == lenderId);
 
             var monthlyData = new List<MonthlyFlowDto>();
 
@@ -257,7 +257,7 @@ namespace Loan.Management.Services
 
                 var monthPayments = payments
                     .Where(p => p.PaymentDate.Month == month &&
-                               p.PaymentDate.Year == year)
+                                p.PaymentDate.Year == year)
                     .ToList();
 
                 var lentAmount = monthLoans.Sum(l => l.TotalAmount);
@@ -294,7 +294,7 @@ namespace Loan.Management.Services
             var lenderId = await GetCurrentLenderIdAsync();
 
             var credits = await _creditRepository.GetListAsync(c => c.LenderId == lenderId);
-            var payments = await _paymentRepository.GetListAsync();
+            var payments = await _paymentRepository.GetListAsync(p=>p.LenderId == lenderId);
             var borrowers = await _borrowerRepository.GetListAsync(b => b.LenderId == lenderId);
 
             var transactions = new List<RecentTransactionDto>();
@@ -345,7 +345,7 @@ namespace Loan.Management.Services
             var lenderId = await GetCurrentLenderIdAsync();
 
             var credits = await _creditRepository.GetListAsync(c => c.LenderId == lenderId);
-            var payments = await _paymentRepository.GetListAsync();
+            var payments = await _paymentRepository.GetListAsync(p => p.LenderId == lenderId);
 
             var currentMonth = DateTime.UtcNow.Month;
             var currentYear = DateTime.UtcNow.Year;

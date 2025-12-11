@@ -495,6 +495,9 @@ namespace Loan.Management.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("LastModifierId");
 
+                    b.Property<Guid>("LenderId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<int>("Method")
                         .HasColumnType("int");
 
@@ -512,6 +515,8 @@ namespace Loan.Management.Migrations
                     b.HasIndex("BorrowerId");
 
                     b.HasIndex("CreditId");
+
+                    b.HasIndex("LenderId");
 
                     b.HasIndex("Method");
 
@@ -2436,9 +2441,17 @@ namespace Loan.Management.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Loan.Management.Entities.Lender", "Lender")
+                        .WithMany()
+                        .HasForeignKey("LenderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.Navigation("Borrower");
 
                     b.Navigation("Credit");
+
+                    b.Navigation("Lender");
                 });
 
             modelBuilder.Entity("Volo.Abp.AuditLogging.AuditLogAction", b =>
