@@ -1,0 +1,30 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <Import Project="..\..\common.props" />
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Money.Management</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Money.Management.Domain\Money.Management.Domain.csproj" />
+    <ProjectReference Include="..\Money.Management.Application.Contracts\Money.Management.Application.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Hangfire" Version="1.8.21" />
+    <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.3.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Http.Features" Version="5.0.17" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Core" Version="2.3.0" />
+    <PackageReference Include="Volo.Abp.BackgroundJobs.HangFire" Version="9.3.6" />
+    <PackageReference Include="Volo.Abp.PermissionManagement.Application" Version="9.3.6" />
+    <PackageReference Include="Volo.Abp.FeatureManagement.Application" Version="9.3.6" />
+    <PackageReference Include="Volo.Abp.SettingManagement.Application" Version="9.3.6" />
+    <PackageReference Include="Volo.Abp.Account.Application" Version="9.3.6" />
+    <PackageReference Include="Volo.Abp.Identity.Application" Version="9.3.6" />
+    <PackageReference Include="Volo.Abp.TenantManagement.Application" Version="9.3.6" />
+  </ItemGroup>
+
+</Project>
