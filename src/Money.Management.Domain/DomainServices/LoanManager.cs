@@ -1,13 +1,16 @@
 using Money.Management.Entities;
-using Money.Management.Enums;
 using System;
 using System.Threading.Tasks;
 using Volo.Abp.Domain.Repositories;
 using Volo.Abp.Domain.Services;
-using Volo.Abp.Guids;
 
 namespace Money.Management.DomainServices
 {
+    /// <summary>
+    /// Orchestrates operations that require cross-aggregate or repository access.
+    /// Business invariants that concern only the Loan aggregate live on <see cref="Loan"/>
+    /// itself; this service handles the coordination layer.
+    /// </summary>
     public class LoanManager : DomainService
     {
         private readonly IRepository<Loan, Guid> _loanRepository;
@@ -21,6 +24,11 @@ namespace Money.Management.DomainServices
             _borrowerRepository = borrowerRepository;
         }
 
+        /// <summary>
+        /// Creates a new loan for the given borrower. Verifies the borrower exists
+        /// before constructing the aggregate so the domain constructor can stay
+        /// infrastructure-free.
+        /// </summary>
         public async Task<Loan> CreateAsync(
             Guid borrowerId,
             decimal principalAmount,
@@ -29,18 +37,11 @@ namespace Money.Management.DomainServices
             DateTime? endDate = null,
             string notes = null)
         {
+            // Cross-aggregate check — borrower must exist
             await _borrowerRepository.GetAsync(borrowerId);
 
-            if (principalAmount <= 0)
-                throw new InvalidOperationException("Principal amount must be greater than 0.");
-
-            if (interestRate < 0)
-                throw new InvalidOperationException("Interest rate cannot be negative.");
-
-            if (endDate.HasValue && endDate.Value <= startDate)
-                throw new InvalidOperationException("End date must be after start date.");
-
-            var loan = new Loan(
+            // Loan constructor enforces all term-level invariants
+            return new Loan(
                 GuidGenerator.Create(),
                 borrowerId,
                 principalAmount,
@@ -48,35 +49,49 @@ namespace Money.Management.DomainServices
                 startDate,
                 endDate,
                 notes);
+        }
 
+        /// <summary>
+        /// Approves a pending loan and persists the state change.
+        /// </summary>
+        public async Task<Loan> ApproveAsync(Guid loanId)
+        {
+            var loan = await _loanRepository.GetAsync(loanId);
+            loan.Approve(); // throws CannotApproveLoanException if already active/completed
+            await _loanRepository.UpdateAsync(loan);
             return loan;
         }
 
-        public async Task<LoanRepayment> MakeRepaymentAsync(Guid loanId, decimal amountPaid, DateTime paymentDate)
+        /// <summary>
+        /// Records a repayment against an active loan. The loan aggregate creates the
+        /// <see cref="LoanRepayment"/> internally; this service persists both.
+        /// </summary>
+        public async Task<LoanRepayment> MakeRepaymentAsync(
+            Guid loanId,
+            decimal amount,
+            DateTime paymentDate,
+            string notes = null)
+        {
+            // includeDetails: true loads the _repayments collection so the entity
+            // can correctly check its own state and add to the list.
+            var loan = await _loanRepository.GetAsync(loanId, includeDetails: true);
+
+            // All validation + state transition lives on the entity
+            var repayment = loan.MakeRepayment(
+                GuidGenerator.Create(), amount, paymentDate, notes);
+
+            await _loanRepository.UpdateAsync(loan);
+            return repayment;
+        }
+
+        /// <summary>
+        /// Marks an active loan as defaulted and persists the change.
+        /// </summary>
+        public async Task MarkAsDefaultedAsync(Guid loanId)
         {
             var loan = await _loanRepository.GetAsync(loanId);
-
-            if (loan.LoanStatus == LoanStatus.Completed)
-                throw new InvalidOperationException("Cannot make a repayment on a completed loan.");
-
-            if (loan.LoanStatus == LoanStatus.Defaulted)
-                throw new InvalidOperationException("Cannot make a repayment on a defaulted loan.");
-
-            if (amountPaid <= 0)
-                throw new InvalidOperationException("Repayment amount must be greater than 0.");
-
-            var effectiveAmount = amountPaid > loan.OutstandingBalance
-                ? loan.OutstandingBalance
-                : amountPaid;
-
-            loan.ApplyRepayment(effectiveAmount);
+            loan.MarkAsDefaulted(); // throws LoanNotActiveException if not Active
             await _loanRepository.UpdateAsync(loan);
-
-            return new LoanRepayment(
-                GuidGenerator.Create(),
-                loanId,
-                effectiveAmount,
-                paymentDate);
         }
     }
 }

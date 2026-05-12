@@ -344,18 +344,32 @@ public class MoneyManagementDbContext :
             b.Property(x => x.Notes)
                 .HasMaxLength(1000);
 
+            // Status is stored with the column name "Status" (was "LoanStatus" before —
+            // handled by the migration rename below)
+            b.Property(x => x.Status)
+                .IsRequired()
+                .HasColumnName("Status");
+
+            // Ignore computed properties — not persisted
+            b.Ignore(x => x.InterestAmount);
+            b.Ignore(x => x.TotalRepaid);
+
             b.HasOne(x => x.Borrower)
                 .WithMany(x => x.Loans)
                 .HasForeignKey(x => x.BorrowerId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            // Repayments uses a private backing field (_repayments).
+            // EF Core discovers it by the _propertyName convention.
             b.HasMany(x => x.Repayments)
                 .WithOne(x => x.Loan)
                 .HasForeignKey(x => x.LoanId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            b.Navigation(x => x.Repayments).HasField("_repayments");
+
             b.HasIndex(x => x.BorrowerId);
-            b.HasIndex(x => x.LoanStatus);
+            b.HasIndex(x => x.Status);
             b.HasIndex(x => x.StartDate);
         });
 
@@ -395,10 +409,13 @@ public class MoneyManagementDbContext :
             b.Property(x => x.Year)
                 .IsRequired();
 
+            // Items uses a private backing field (_items).
             b.HasMany(x => x.Items)
                 .WithOne(x => x.Budget)
                 .HasForeignKey(x => x.BudgetId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            b.Navigation(x => x.Items).HasField("_items");
 
             b.HasIndex(x => x.UserId);
             b.HasIndex(x => new { x.UserId, x.Year, x.Month }).IsUnique();
@@ -417,6 +434,13 @@ public class MoneyManagementDbContext :
             b.Property(x => x.Amount)
                 .IsRequired()
                 .HasColumnType("decimal(18,2)");
+
+            b.Property(x => x.ActualAmount)
+                .HasColumnType("decimal(18,2)");
+
+            // Ignore computed properties
+            b.Ignore(x => x.Variance);
+            b.Ignore(x => x.IsOverBudget);
 
             b.HasIndex(x => x.BudgetId);
             b.HasIndex(x => x.Type);

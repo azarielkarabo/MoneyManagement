@@ -18,7 +18,7 @@ namespace Money.Management.Services.Loans.Dtos
         public DateTime StartDate { get; set; }
         public DateTime? EndDate { get; set; }
 
-        public LoanStatus LoanStatus { get; set; }
+        public LoanStatus Status { get; set; }
         public string Notes { get; set; }
 
         public decimal RepaymentProgress { get; set; }

@@ -31,25 +31,30 @@ namespace Money.Management.Services
             _budgetItemRepository = budgetItemRepository;
         }
 
+        // ── Loan report ────────────────────────────────────────────────────────────
+
         public async Task<LoanReportDto> GetLoanReportAsync(DateTime fromDate, DateTime toDate)
         {
             var loans = await _loanRepository.GetListAsync(
                 l => l.StartDate >= fromDate && l.StartDate <= toDate);
 
-            var loanIds = loans.Select(l => l.Id).ToList();
+            var loanIds = loans.Select(l => l.Id).ToHashSet();
             var allRepayments = await _repaymentRepository.GetListAsync();
-            var repayments = allRepayments
-                .Where(r => loanIds.Contains(r.LoanId))
-                .ToList();
+            var repayments = allRepayments.Where(r => loanIds.Contains(r.LoanId)).ToList();
 
+            // Interest earned = sum of InterestAmount on fully completed loans only
+            var interestEarned = loans
+                .Where(l => l.Status == LoanStatus.Completed)
+                .Sum(l => l.InterestAmount);
+
+            // Repayment trend grouped by month
             var trend = repayments
                 .GroupBy(r => new { r.PaymentDate.Year, r.PaymentDate.Month })
                 .Select(g => new MonthlyTrendDto
                 {
                     Year = g.Key.Year,
                     Month = g.Key.Month,
-                    MonthLabel = new DateTime(g.Key.Year, g.Key.Month, 1)
-                        .ToString("MMM yyyy", CultureInfo.InvariantCulture),
+                    MonthLabel = MonthLabel(g.Key.Year, g.Key.Month),
                     Amount = g.Sum(r => r.AmountPaid),
                     Count = g.Count()
                 })
@@ -61,18 +66,18 @@ namespace Money.Management.Services
                 FromDate = fromDate,
                 ToDate = toDate,
                 TotalLoans = loans.Count,
-                ActiveLoans = loans.Count(l => l.LoanStatus == LoanStatus.Active),
-                CompletedLoans = loans.Count(l => l.LoanStatus == LoanStatus.Completed),
-                DefaultedLoans = loans.Count(l => l.LoanStatus == LoanStatus.Defaulted),
+                ActiveLoans = loans.Count(l => l.Status == LoanStatus.Active),
+                CompletedLoans = loans.Count(l => l.Status == LoanStatus.Completed),
+                DefaultedLoans = loans.Count(l => l.Status == LoanStatus.Defaulted),
                 TotalDisbursed = loans.Sum(l => l.PrincipalAmount),
-                TotalInterestEarned = loans
-                    .Where(l => l.LoanStatus == LoanStatus.Completed)
-                    .Sum(l => l.TotalAmount - l.PrincipalAmount),
+                TotalInterestEarned = interestEarned,
                 TotalOutstanding = loans.Sum(l => l.OutstandingBalance),
                 TotalRepaid = repayments.Sum(r => r.AmountPaid),
                 RepaymentTrend = trend
             };
         }
+
+        // ── Budget report (monthly breakdown + category + savings trend) ────────────
 
         public async Task<BudgetReportDto> GetBudgetReportAsync(int year)
         {
@@ -80,66 +85,71 @@ namespace Money.Management.Services
             var allItems = await _budgetItemRepository.GetListAsync();
 
             var monthlyBreakdown = new List<BudgetReportDto.MonthlySpendingDto>();
-            var categoryMap = new Dictionary<string, (decimal Total, int Count)>();
+            var categoryTotals = new Dictionary<string, (decimal Planned, decimal Actual, int Count)>(
+                StringComparer.OrdinalIgnoreCase);
 
             foreach (var budget in budgets.OrderBy(b => b.Month))
             {
                 var items = allItems.Where(i => i.BudgetId == budget.Id).ToList();
-                foreach (var item in items)
-                    budget.Items.Add(item);
 
-                var expenses = budget.GetTotalExpenses();
-                var savings = budget.GetTotalSavings();
+                var plannedExpenses = items
+                    .Where(i => i.Type == BudgetItemType.Expense).Sum(i => i.Amount);
+                var actualExpenses = items
+                    .Where(i => i.Type == BudgetItemType.Expense).Sum(i => i.ActualAmount ?? 0m);
+                var plannedSavings = items
+                    .Where(i => i.Type == BudgetItemType.Saving).Sum(i => i.Amount);
+                var actualSavings = items
+                    .Where(i => i.Type == BudgetItemType.Saving).Sum(i => i.ActualAmount ?? 0m);
 
                 monthlyBreakdown.Add(new BudgetReportDto.MonthlySpendingDto
                 {
                     Month = budget.Month,
-                    MonthLabel = new DateTime(year, budget.Month, 1)
-                        .ToString("MMM yyyy", CultureInfo.InvariantCulture),
+                    MonthLabel = MonthLabel(year, budget.Month),
                     Salary = budget.Salary,
-                    TotalExpenses = expenses,
-                    TotalSavings = savings,
-                    RemainingBalance = budget.GetRemainingBalance()
+                    TotalExpenses = plannedExpenses,
+                    TotalSavings = plannedSavings,
+                    RemainingBalance = budget.Salary - actualExpenses,
+
+                    // Planned vs Actual
+                    TotalActualExpenses = actualExpenses,
+                    TotalActualSavings = actualSavings,
+                    Variance = plannedExpenses - actualExpenses,
+                    IsOverspending = actualExpenses > budget.Salary
                 });
 
+                // Category roll-up
                 foreach (var item in items)
                 {
-                    if (!categoryMap.ContainsKey(item.Name))
-                        categoryMap[item.Name] = (0, 0);
-                    categoryMap[item.Name] = (
-                        categoryMap[item.Name].Total + item.Amount,
-                        categoryMap[item.Name].Count + 1);
+                    if (!categoryTotals.ContainsKey(item.Name))
+                        categoryTotals[item.Name] = (0m, 0m, 0);
+
+                    var (p, a, c) = categoryTotals[item.Name];
+                    categoryTotals[item.Name] = (
+                        p + item.Amount,
+                        a + (item.ActualAmount ?? 0m),
+                        c + 1);
                 }
             }
 
-            var categoryBreakdown = categoryMap
+            var categoryBreakdown = categoryTotals
                 .Select(kv => new BudgetReportDto.CategoryExpenseDto
                 {
                     CategoryName = kv.Key,
-                    TotalAmount = kv.Value.Total,
+                    TotalAmount = kv.Value.Planned,
+                    TotalActualAmount = kv.Value.Actual,
                     Count = kv.Value.Count
                 })
                 .OrderByDescending(c => c.TotalAmount)
                 .ToList();
 
-            var savingsTrend = budgets
-                .OrderBy(b => b.Month)
-                .Select(b =>
+            var savingsTrend = monthlyBreakdown
+                .Select(m => new MonthlyTrendDto
                 {
-                    var items = allItems.Where(i => i.BudgetId == b.Id).ToList();
-                    foreach (var item in items)
-                        if (!b.Items.Contains(item))
-                            b.Items.Add(item);
-
-                    return new MonthlyTrendDto
-                    {
-                        Year = year,
-                        Month = b.Month,
-                        MonthLabel = new DateTime(year, b.Month, 1)
-                            .ToString("MMM yyyy", CultureInfo.InvariantCulture),
-                        Amount = b.GetTotalSavings(),
-                        Count = b.Items.Count(i => i.Type == Enums.BudgetItemType.Saving)
-                    };
+                    Year = year,
+                    Month = m.Month,
+                    MonthLabel = m.MonthLabel,
+                    Amount = m.TotalActualSavings > 0 ? m.TotalActualSavings : m.TotalSavings,
+                    Count = 0
                 })
                 .ToList();
 
@@ -152,6 +162,8 @@ namespace Money.Management.Services
             };
         }
 
+        // ── Cross-module summary ───────────────────────────────────────────────────
+
         public async Task<ReportSummaryDto> GetSummaryReportAsync()
         {
             var loans = await _loanRepository.GetListAsync();
@@ -159,37 +171,40 @@ namespace Money.Management.Services
             var budgets = await _budgetRepository.GetListAsync();
             var budgetItems = await _budgetItemRepository.GetListAsync();
 
-            var repaymentTrend = repayments
+            // Loan repayment trend
+            var loanTrend = repayments
                 .GroupBy(r => new { r.PaymentDate.Year, r.PaymentDate.Month })
                 .Select(g => new MonthlyTrendDto
                 {
                     Year = g.Key.Year,
                     Month = g.Key.Month,
-                    MonthLabel = new DateTime(g.Key.Year, g.Key.Month, 1)
-                        .ToString("MMM yyyy", CultureInfo.InvariantCulture),
+                    MonthLabel = MonthLabel(g.Key.Year, g.Key.Month),
                     Amount = g.Sum(r => r.AmountPaid),
                     Count = g.Count()
                 })
                 .OrderBy(t => t.Year).ThenBy(t => t.Month)
                 .ToList();
 
-            var budgetExpenseTrend = new List<MonthlyTrendDto>();
-            foreach (var budget in budgets.OrderBy(b => b.Year).ThenBy(b => b.Month))
-            {
-                var items = budgetItems.Where(i => i.BudgetId == budget.Id).ToList();
-                foreach (var item in items)
-                    budget.Items.Add(item);
-
-                budgetExpenseTrend.Add(new MonthlyTrendDto
+            // Budget expense trend (actual where available, else planned)
+            var budgetTrend = budgets
+                .OrderBy(b => b.Year).ThenBy(b => b.Month)
+                .Select(b =>
                 {
-                    Year = budget.Year,
-                    Month = budget.Month,
-                    MonthLabel = new DateTime(budget.Year, budget.Month, 1)
-                        .ToString("MMM yyyy", CultureInfo.InvariantCulture),
-                    Amount = budget.GetTotalExpenses(),
-                    Count = budget.Items.Count(i => i.Type == Enums.BudgetItemType.Expense)
-                });
-            }
+                    var items = budgetItems.Where(i => i.BudgetId == b.Id).ToList();
+                    var actualExpenses = items
+                        .Where(i => i.Type == BudgetItemType.Expense)
+                        .Sum(i => i.ActualAmount ?? i.Amount);
+
+                    return new MonthlyTrendDto
+                    {
+                        Year = b.Year,
+                        Month = b.Month,
+                        MonthLabel = MonthLabel(b.Year, b.Month),
+                        Amount = actualExpenses,
+                        Count = items.Count(i => i.Type == BudgetItemType.Expense)
+                    };
+                })
+                .ToList();
 
             var budgetCount = budgets.Count;
 
@@ -198,26 +213,30 @@ namespace Money.Management.Services
                 TotalLoans = loans.Count,
                 TotalDisbursed = loans.Sum(l => l.PrincipalAmount),
                 TotalInterestEarned = loans
-                    .Where(l => l.LoanStatus == LoanStatus.Completed)
-                    .Sum(l => l.TotalAmount - l.PrincipalAmount),
+                    .Where(l => l.Status == LoanStatus.Completed)
+                    .Sum(l => l.InterestAmount),
                 TotalOutstanding = loans.Sum(l => l.OutstandingBalance),
                 TotalRepaid = repayments.Sum(r => r.AmountPaid),
-                AverageMonthlySalary = budgetCount > 0
-                    ? budgets.Average(b => b.Salary)
-                    : 0,
-                AverageMonthlyExpenses = budgetCount > 0
-                    ? budgetExpenseTrend.Average(t => t.Amount)
-                    : 0,
+                AverageMonthlySalary = budgetCount > 0 ? budgets.Average(b => b.Salary) : 0m,
+                AverageMonthlyExpenses = budgetTrend.Count > 0
+                    ? budgetTrend.Average(t => t.Amount) : 0m,
                 AverageMonthlySavings = budgetCount > 0
                     ? budgets.Average(b =>
                     {
                         var items = budgetItems.Where(i => i.BudgetId == b.Id).ToList();
-                        return items.Where(i => i.Type == Enums.BudgetItemType.Saving).Sum(i => i.Amount);
+                        return items
+                            .Where(i => i.Type == BudgetItemType.Saving)
+                            .Sum(i => i.ActualAmount ?? i.Amount);
                     })
-                    : 0,
-                LoanRepaymentTrend = repaymentTrend,
-                BudgetExpenseTrend = budgetExpenseTrend
+                    : 0m,
+                LoanRepaymentTrend = loanTrend,
+                BudgetExpenseTrend = budgetTrend
             };
         }
+
+        // ── Helpers ───────────────────────────────────────────────────────────────
+
+        private static string MonthLabel(int year, int month) =>
+            new DateTime(year, month, 1).ToString("MMM yyyy", CultureInfo.InvariantCulture);
     }
 }

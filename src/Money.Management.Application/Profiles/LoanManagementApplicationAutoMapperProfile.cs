@@ -111,28 +111,19 @@ namespace Money.Management.Profiles
                 .ForMember(dest => dest.TotalBorrowersManaged, opt => opt.Ignore());
 
             // ============ Loan Mappings ============
+            // All Loan properties have private setters; AutoMapper reads them fine via
+            // getter reflection. Service sets BorrowerName, TotalPaid, and RepaymentProgress.
             CreateMap<Loan, LoanDto>()
-                .ForMember(dest => dest.BorrowerName, opt => opt.Ignore()) // Set in service
-                .ForMember(dest => dest.TotalPaid, opt => opt.Ignore()) // Calculated in service
-                .ForMember(dest => dest.RepaymentProgress, opt => opt.Ignore()); // Calculated in service
-
-            CreateMap<CreateLoanDto, Loan>()
-                .ForMember(dest => dest.Id, opt => opt.Ignore())
-                .ForMember(dest => dest.Borrower, opt => opt.Ignore())
-                .ForMember(dest => dest.TotalAmount, opt => opt.Ignore()) // Calculated in entity constructor
-                .ForMember(dest => dest.OutstandingBalance, opt => opt.Ignore()) // Calculated in entity constructor
-                .ForMember(dest => dest.LoanStatus, opt => opt.Ignore()) // Set to Active in constructor
-                .ForMember(dest => dest.Repayments, opt => opt.Ignore());
+                .ForMember(dest => dest.BorrowerName, opt => opt.Ignore())
+                .ForMember(dest => dest.TotalPaid, opt => opt.Ignore())
+                .ForMember(dest => dest.RepaymentProgress, opt => opt.Ignore());
 
             CreateMap<LoanRepayment, LoanRepaymentDto>();
 
             // ============ Budget Mappings ============
-            CreateMap<BudgetItem, BudgetItemDto>();
-
-            CreateMap<AddBudgetItemDto, BudgetItem>()
-                .ForMember(dest => dest.Id, opt => opt.Ignore())
-                .ForMember(dest => dest.BudgetId, opt => opt.Ignore()) // Set by service
-                .ForMember(dest => dest.Budget, opt => opt.Ignore());
+            CreateMap<BudgetItem, BudgetItemDto>()
+                .ForMember(dest => dest.Variance, opt => opt.MapFrom(src => src.Variance))
+                .ForMember(dest => dest.IsOverBudget, opt => opt.MapFrom(src => src.IsOverBudget));
         }
     }
 }
