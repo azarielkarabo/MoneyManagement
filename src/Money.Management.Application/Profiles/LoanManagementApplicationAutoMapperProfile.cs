@@ -6,6 +6,7 @@ using Money.Management.Services.credits.Dtos;
 using Money.Management.Services.Loans.Dtos;
 using Money.Management.Services.Payments.Dtos;
 using Money.Management.Services.Lenders.Dtos;
+using System.Collections.Generic;
 
 namespace Money.Management.Profiles
 {
@@ -14,43 +15,15 @@ namespace Money.Management.Profiles
         public MoneyManagementApplicationAutoMapperProfile()
         {
             // ============ Borrower Mappings ============
-            CreateMap<Borrower, BorrowerDto>();
+            // All Borrower properties have private setters; AutoMapper reads via getter reflection.
+            // ActiveMoneysCount / TotalMoneysCount are set by the service, not mapped.
+            CreateMap<Borrower, BorrowerDto>()
+                .ForMember(dest => dest.ActiveMoneysCount, opt => opt.Ignore())
+                .ForMember(dest => dest.TotalMoneysCount, opt => opt.Ignore());
 
-            CreateMap<CreateBorrowerDto, Borrower>()
-                .ForMember(dest => dest.Id, opt => opt.Ignore())
-                .ForMember(dest => dest.LenderId, opt => opt.Ignore()) // Set by service
-                .ForMember(dest => dest.FullName, opt => opt.MapFrom(src => $"{src.FirstName} {src.LastName}"))
-                .ForMember(dest => dest.Status, opt => opt.Ignore()) // Set to BorrowerStatus.New in entity constructor
-                .ForMember(dest => dest.IsKycVerified, opt => opt.Ignore()) // Set in entity constructor
-                .ForMember(dest => dest.KycVerificationDate, opt => opt.Ignore())
-                .ForMember(dest => dest.TotalBorrowed, opt => opt.Ignore()) // Calculated from credits
-                .ForMember(dest => dest.Outstanding, opt => opt.Ignore()) // Calculated from credits
-                .ForMember(dest => dest.Paid, opt => opt.Ignore()) // Calculated from credits
-                .ForMember(dest => dest.DefaultAmount, opt => opt.Ignore()) // Calculated from credits
-                .ForMember(dest => dest.TotalMoneys, opt => opt.Ignore()) // Calculated from credits
-                .ForMember(dest => dest.DefaultedMoneys, opt => opt.Ignore()) // Calculated from credits
-                .ForMember(dest => dest.LastActivityDate, opt => opt.Ignore())
-                .ForMember(dest => dest.Lender, opt => opt.Ignore())
-                .ForMember(dest => dest.Credits, opt => opt.Ignore())
-                .ForMember(dest => dest.Payments, opt => opt.Ignore());
+            CreateMap<BorrowerDocument, BorrowerDocumentDto>();
 
-            CreateMap<UpdateBorrowerDto, Borrower>()
-                .ForMember(dest => dest.Id, opt => opt.Ignore())
-                .ForMember(dest => dest.LenderId, opt => opt.Ignore())
-                .ForMember(dest => dest.FullName, opt => opt.MapFrom(src => $"{src.FirstName} {src.LastName}"))
-                .ForMember(dest => dest.Status, opt => opt.Ignore())
-                .ForMember(dest => dest.IsKycVerified, opt => opt.Ignore())
-                .ForMember(dest => dest.KycVerificationDate, opt => opt.Ignore())
-                .ForMember(dest => dest.TotalBorrowed, opt => opt.Ignore())
-                .ForMember(dest => dest.Outstanding, opt => opt.Ignore())
-                .ForMember(dest => dest.Paid, opt => opt.Ignore())
-                .ForMember(dest => dest.DefaultAmount, opt => opt.Ignore())
-                .ForMember(dest => dest.TotalMoneys, opt => opt.Ignore())
-                .ForMember(dest => dest.DefaultedMoneys, opt => opt.Ignore())
-                .ForMember(dest => dest.LastActivityDate, opt => opt.Ignore())
-                .ForMember(dest => dest.Lender, opt => opt.Ignore())
-                .ForMember(dest => dest.Credits, opt => opt.Ignore())
-                .ForMember(dest => dest.Payments, opt => opt.Ignore());
+            CreateMap<BorrowerBankAccount, BorrowerBankAccountDto>();
 
             // ============ Credit Mappings ============
             CreateMap<Credit, CreditDto>()
@@ -95,20 +68,8 @@ namespace Money.Management.Profiles
                 .ForMember(dest => dest.NewOutstanding, opt => opt.Ignore()); // Calculated by service
 
             // ============ Lender Mappings ============
+            // Lender has private setters; AutoMapper reads via getters.
             CreateMap<Lender, LenderDto>();
-
-            CreateMap<CreateLenderDto, Lender>()
-                .ForMember(dest => dest.Id, opt => opt.Ignore())
-                .ForMember(dest => dest.User, opt => opt.Ignore())
-                .ForMember(dest => dest.TotalMoneysCreated, opt => opt.Ignore())
-                .ForMember(dest => dest.TotalBorrowersManaged, opt => opt.Ignore());
-
-            CreateMap<UpdateLenderDto, Lender>()
-                .ForMember(dest => dest.Id, opt => opt.Ignore())
-                .ForMember(dest => dest.UserId, opt => opt.Ignore())
-                .ForMember(dest => dest.User, opt => opt.Ignore())
-                .ForMember(dest => dest.TotalMoneysCreated, opt => opt.Ignore())
-                .ForMember(dest => dest.TotalBorrowersManaged, opt => opt.Ignore());
 
             // ============ Loan Mappings ============
             // All Loan properties have private setters; AutoMapper reads them fine via

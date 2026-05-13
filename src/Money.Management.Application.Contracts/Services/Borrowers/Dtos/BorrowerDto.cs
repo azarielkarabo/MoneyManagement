@@ -1,4 +1,4 @@
-﻿using Money.Management.Enums;
+using Money.Management.Enums;
 using System;
 using Volo.Abp.Application.Dtos;
 
@@ -51,6 +51,13 @@ namespace Money.Management.Services.Borrowers.Dtos
         public BorrowerStatus Status { get; set; }
         public bool IsKycVerified { get; set; }
         public DateTime? KycVerificationDate { get; set; }
+        public string SuspensionReason { get; set; }
+        public string BlacklistReason { get; set; }
+
+        // Profile
+        public string AvatarUrl { get; set; }
+        public int CreditScore { get; set; }
+        public CreditRating CreditRating { get; set; }
 
         // Financial Summary
         public decimal TotalBorrowed { get; set; }
@@ -64,7 +71,7 @@ namespace Money.Management.Services.Borrowers.Dtos
         public DateTime? LastActivityDate { get; set; }
         public string Notes { get; set; }
 
-        // Computed Properties
+        // Computed (set by service)
         public int ActiveMoneysCount { get; set; }
         public int TotalMoneysCount { get; set; }
     }

@@ -1,4 +1,3 @@
-﻿// Money.Management/Services/Lenders/ILenderAppService.cs
 using Money.Management.DomainServices;
 using Money.Management.Services.Lenders.Dtos;
 using System;
@@ -18,5 +17,9 @@ namespace Money.Management.Services.Lenders
         Task DeleteAsync(Guid id);
         Task<LenderStatisticsDto> GetStatisticsAsync(Guid id);
         Task<LenderStatisticsDto> GetCurrentLenderStatisticsAsync();
+
+        // ── Profile management ────────────────────────────────────────────────────
+        Task<LenderDto> UpdateProfileAsync(Guid id, UpdateLenderProfileDto input);
+        Task<LenderDto> SetAvatarAsync(Guid id, string avatarUrl);
     }
 }

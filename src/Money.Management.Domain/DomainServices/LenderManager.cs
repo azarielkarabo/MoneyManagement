@@ -113,20 +113,10 @@ namespace Money.Management.DomainServices
         {
             var lender = await GetAsync(id);
 
-            if (!string.IsNullOrWhiteSpace(position))
-            {
-                lender.Position = position;
-            }
+            lender.UpdateProfile(position: position);
 
             if (maxMoneyApprovalAmount.HasValue)
-            {
-                if (maxMoneyApprovalAmount.Value < 0)
-                {
-                    throw new InvalidOperationException("Max Money approval amount cannot be negative.");
-                }
-
-                lender.MaxMoneyApprovalAmount = maxMoneyApprovalAmount.Value;
-            }
+                lender.UpdateApprovalLimit(maxMoneyApprovalAmount.Value);
 
             await _lenderRepository.UpdateAsync(lender);
             return lender;
@@ -187,14 +177,14 @@ namespace Money.Management.DomainServices
         public async Task IncrementMoneysCreatedAsync(Guid lenderId)
         {
             var lender = await GetAsync(lenderId);
-            lender.TotalMoneysCreated++;
+            lender.IncrementMoneysCreated();
             await _lenderRepository.UpdateAsync(lender);
         }
 
         public async Task IncrementBorrowersManagedAsync(Guid lenderId)
         {
             var lender = await GetAsync(lenderId);
-            lender.TotalBorrowersManaged++;
+            lender.IncrementBorrowersManaged();
             await _lenderRepository.UpdateAsync(lender);
         }
 

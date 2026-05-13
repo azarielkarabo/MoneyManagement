@@ -116,30 +116,14 @@ namespace Money.Management.DomainServices
         public async Task SuspendBorrowerAsync(Guid borrowerId, string reason)
         {
             var borrower = await _borrowerRepository.GetAsync(borrowerId);
-
-            if (borrower.Status == BorrowerStatus.Suspended)
-            {
-                throw new InvalidOperationException("Borrower is already suspended.");
-            }
-
-            borrower.Status = BorrowerStatus.Suspended;
-            borrower.Notes = reason;
-
+            borrower.Suspend(reason);
             await _borrowerRepository.UpdateAsync(borrower);
         }
 
         public async Task BlacklistBorrowerAsync(Guid borrowerId, string reason)
         {
             var borrower = await _borrowerRepository.GetAsync(borrowerId);
-
-            if (borrower.Status == BorrowerStatus.Blacklisted)
-            {
-                throw new InvalidOperationException("Borrower is already blacklisted.");
-            }
-
-            borrower.Status = BorrowerStatus.Blacklisted;
-            borrower.Notes = reason;
-
+            borrower.Blacklist(reason);
             await _borrowerRepository.UpdateAsync(borrower);
         }
 

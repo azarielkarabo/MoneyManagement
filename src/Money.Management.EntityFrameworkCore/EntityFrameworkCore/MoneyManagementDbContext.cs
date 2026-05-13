@@ -49,6 +49,8 @@ public class MoneyManagementDbContext :
     // Money Management Entities
     public DbSet<Lender> Lenders { get; set; }
     public DbSet<Borrower> Borrowers { get; set; }
+    public DbSet<BorrowerDocument> BorrowerDocuments { get; set; }
+    public DbSet<BorrowerBankAccount> BorrowerBankAccounts { get; set; }
     public DbSet<Credit> Credits { get; set; }
     public DbSet<Payment> Payments { get; set; }
 
@@ -82,8 +84,22 @@ public class MoneyManagementDbContext :
                 .IsRequired()
                 .HasMaxLength(100);
 
+            b.Property(x => x.Department).HasMaxLength(100);
+            b.Property(x => x.Branch).HasMaxLength(100);
+            b.Property(x => x.EmployeeId).HasMaxLength(50);
+            b.Property(x => x.DirectPhone).HasMaxLength(20);
+            b.Property(x => x.OfficeLocation).HasMaxLength(200);
+            b.Property(x => x.Bio).HasMaxLength(1000);
+            b.Property(x => x.AvatarUrl).HasMaxLength(500);
+
             b.Property(x => x.MaxMoneyApprovalAmount)
                 .HasColumnType("decimal(18,2)");
+
+            b.Property(x => x.CollectionRate)
+                .HasColumnType("decimal(5,2)");
+
+            b.Property(x => x.ApprovalRate)
+                .HasColumnType("decimal(5,2)");
 
             b.HasOne(x => x.User)
                 .WithMany()
@@ -194,9 +210,22 @@ public class MoneyManagementDbContext :
             b.Property(x => x.DefaultAmount)
                 .HasColumnType("decimal(18,2)");
 
+            // Profile
+            b.Property(x => x.AvatarUrl).HasMaxLength(500);
+            b.Property(x => x.SuspensionReason).HasMaxLength(1000);
+            b.Property(x => x.BlacklistReason).HasMaxLength(1000);
+
             // Miscellaneous
             b.Property(x => x.Notes)
                 .HasMaxLength(1000);
+
+            // Bank accounts backing field
+            b.HasMany(x => x.BankAccounts)
+                .WithOne(x => x.Borrower)
+                .HasForeignKey(x => x.BorrowerId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            b.Navigation(x => x.BankAccounts).HasField("_bankAccounts");
 
             // Relationships
             b.HasOne(x => x.Lender)
@@ -444,6 +473,37 @@ public class MoneyManagementDbContext :
 
             b.HasIndex(x => x.BudgetId);
             b.HasIndex(x => x.Type);
+        });
+
+        // ============ BorrowerDocument Configuration ============
+        builder.Entity<BorrowerDocument>(b =>
+        {
+            b.ToTable("BorrowerDocuments");
+            b.ConfigureByConvention();
+
+            b.Property(x => x.FileReference).IsRequired().HasMaxLength(1000);
+            b.Property(x => x.FileName).IsRequired().HasMaxLength(500);
+            b.Property(x => x.MimeType).HasMaxLength(100);
+            b.Property(x => x.RejectionReason).HasMaxLength(1000);
+
+            b.HasIndex(x => x.BorrowerId);
+            b.HasIndex(x => x.DocumentType);
+            b.HasIndex(x => x.Status);
+        });
+
+        // ============ BorrowerBankAccount Configuration ============
+        builder.Entity<BorrowerBankAccount>(b =>
+        {
+            b.ToTable("BorrowerBankAccounts");
+            b.ConfigureByConvention();
+
+            b.Property(x => x.BankName).IsRequired().HasMaxLength(200);
+            b.Property(x => x.BranchCode).HasMaxLength(20);
+            b.Property(x => x.AccountNumber).IsRequired().HasMaxLength(30);
+            b.Property(x => x.AccountHolderName).HasMaxLength(200);
+
+            b.HasIndex(x => x.BorrowerId);
+            b.HasIndex(x => new { x.BorrowerId, x.IsPrimary });
         });
 
         builder.ConfigurePermissionManagement();

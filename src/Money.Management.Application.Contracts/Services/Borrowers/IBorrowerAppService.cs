@@ -1,7 +1,8 @@
-﻿using Money.Management.Services.Borrowers.Dtos;
+using Money.Management.Services.Borrowers.Dtos;
 using Money.Management.Services.credits.Dtos;
 using Money.Management.Services.Payments.Dtos;
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Volo.Abp.Application.Dtos;
 using Volo.Abp.Application.Services;
@@ -29,5 +30,30 @@ namespace Money.Management.Services.Borrowers
         Task RecalculateFinancialsAsync(Guid id);
 
         Task<bool> CheckIdNumberAvailabilityAsync(string idNumber);
+
+        // ── Profile management ────────────────────────────────────────────────────
+        Task<BorrowerDto> SetAvatarAsync(Guid id, string avatarUrl);
+
+        Task<BorrowerDto> UpdateCreditScoreAsync(Guid id, int creditScore);
+
+        // ── Document management ───────────────────────────────────────────────────
+        Task<BorrowerDocumentDto> UploadDocumentAsync(Guid borrowerId, UploadBorrowerDocumentDto input);
+
+        Task<PagedResultDto<BorrowerDocumentDto>> GetDocumentsAsync(Guid borrowerId, PagedAndSortedResultRequestDto input);
+
+        Task<BorrowerDocumentDto> VerifyDocumentAsync(Guid borrowerId, Guid documentId);
+
+        Task<BorrowerDocumentDto> RejectDocumentAsync(Guid borrowerId, Guid documentId, RejectDocumentDto input);
+
+        // ── Bank account management ───────────────────────────────────────────────
+        Task<BorrowerBankAccountDto> AddBankAccountAsync(Guid borrowerId, AddBorrowerBankAccountDto input);
+
+        Task<IReadOnlyList<BorrowerBankAccountDto>> GetBankAccountsAsync(Guid borrowerId);
+
+        Task SetPrimaryBankAccountAsync(Guid borrowerId, Guid accountId);
+
+        Task VerifyBankAccountAsync(Guid borrowerId, Guid accountId);
+
+        Task DeleteBankAccountAsync(Guid borrowerId, Guid accountId);
     }
 }

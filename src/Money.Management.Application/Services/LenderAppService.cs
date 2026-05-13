@@ -141,6 +141,34 @@ namespace Money.Management.Services.Lenders
             return await GetStatisticsAsync(lender.Id);
         }
 
+        public async Task<LenderDto> UpdateProfileAsync(Guid id, UpdateLenderProfileDto input)
+        {
+            var lender = await _lenderRepository.GetAsync(id);
+
+            lender.UpdateProfile(
+                position: input.Position,
+                department: input.Department,
+                branch: input.Branch,
+                employeeId: input.EmployeeId,
+                directPhone: input.DirectPhone,
+                officeLocation: input.OfficeLocation,
+                bio: input.Bio);
+
+            if (input.MaxMoneyApprovalAmount.HasValue)
+                lender.UpdateApprovalLimit(input.MaxMoneyApprovalAmount.Value);
+
+            await _lenderRepository.UpdateAsync(lender);
+            return await GetAsync(id);
+        }
+
+        public async Task<LenderDto> SetAvatarAsync(Guid id, string avatarUrl)
+        {
+            var lender = await _lenderRepository.GetAsync(id);
+            lender.SetAvatar(avatarUrl);
+            await _lenderRepository.UpdateAsync(lender);
+            return await GetAsync(id);
+        }
+
         public async Task<LenderDto> GetByUserIdAsync(Guid userId)
         {
             var lender = await _lenderManager.GetByUserIdAsync(userId);
