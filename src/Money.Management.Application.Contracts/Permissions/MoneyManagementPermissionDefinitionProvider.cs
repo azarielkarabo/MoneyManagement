@@ -53,6 +53,10 @@ public class MoneyManagementPermissionDefinitionProvider : PermissionDefinitionP
         lenders.AddChild(MoneyManagementPermissions.Lenders.Create, L("Permission:Lenders.Create"));
         lenders.AddChild(MoneyManagementPermissions.Lenders.Edit, L("Permission:Lenders.Edit"));
         lenders.AddChild(MoneyManagementPermissions.Lenders.Delete, L("Permission:Lenders.Delete"));
+
+        var lenderApplications = myGroup.AddPermission(MoneyManagementPermissions.LenderApplications.Default, L("Permission:LenderApplications"));
+        lenderApplications.AddChild(MoneyManagementPermissions.LenderApplications.Approve, L("Permission:LenderApplications.Approve"));
+        lenderApplications.AddChild(MoneyManagementPermissions.LenderApplications.Reject, L("Permission:LenderApplications.Reject"));
     }
 
     private static LocalizableString L(string name)

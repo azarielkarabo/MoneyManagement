@@ -48,7 +48,9 @@ public class MoneyManagementDbContext :
 
     // Money Management Entities
     public DbSet<Lender> Lenders { get; set; }
+    public DbSet<LenderApplication> LenderApplications { get; set; }
     public DbSet<Borrower> Borrowers { get; set; }
+    public DbSet<BorrowerApplication> BorrowerApplications { get; set; }
     public DbSet<BorrowerDocument> BorrowerDocuments { get; set; }
     public DbSet<BorrowerBankAccount> BorrowerBankAccounts { get; set; }
     public DbSet<Credit> Credits { get; set; }
@@ -110,6 +112,25 @@ public class MoneyManagementDbContext :
             b.HasIndex(x => x.Position);
 
             b.Navigation(x => x.User).AutoInclude();
+        });
+
+        // ============ Lender Application Configuration ============
+        builder.Entity<LenderApplication>(b =>
+        {
+            b.ToTable("LenderApplications");
+            b.ConfigureByConvention();
+
+            b.Property(x => x.FirstName).IsRequired().HasMaxLength(100);
+            b.Property(x => x.LastName).IsRequired().HasMaxLength(100);
+            b.Property(x => x.Email).IsRequired().HasMaxLength(256);
+            b.Property(x => x.PhoneNumber).HasMaxLength(20);
+            b.Property(x => x.DesiredUserName).IsRequired().HasMaxLength(256);
+            b.Property(x => x.Position).IsRequired().HasMaxLength(100);
+            b.Property(x => x.Message).HasMaxLength(1000);
+            b.Property(x => x.RejectionReason).HasMaxLength(1000);
+
+            b.HasIndex(x => x.Email);
+            b.HasIndex(x => x.Status);
         });
 
         // ============ Borrower Configuration ============
@@ -192,6 +213,28 @@ public class MoneyManagementDbContext :
             b.HasIndex(x => x.EmailAddress);
             b.HasIndex(x => x.PhoneNumber);
             b.HasIndex(x => new { x.LenderId, x.Status });
+            b.HasIndex(x => x.UserId);
+        });
+
+        // ============ Borrower Application Configuration ============
+        builder.Entity<BorrowerApplication>(b =>
+        {
+            b.ToTable("BorrowerApplications");
+            b.ConfigureByConvention();
+
+            b.Property(x => x.FirstName).IsRequired().HasMaxLength(100);
+            b.Property(x => x.LastName).IsRequired().HasMaxLength(100);
+            b.Property(x => x.IdNumber).IsRequired().HasMaxLength(20);
+            b.Property(x => x.Email).IsRequired().HasMaxLength(256);
+            b.Property(x => x.PhoneNumber).HasMaxLength(20);
+            b.Property(x => x.Address).HasMaxLength(500);
+            b.Property(x => x.MonthlyIncome).HasColumnType("decimal(18,2)");
+            b.Property(x => x.Message).HasMaxLength(1000);
+            b.Property(x => x.RejectionReason).HasMaxLength(1000);
+
+            b.HasIndex(x => x.Email);
+            b.HasIndex(x => x.IdNumber);
+            b.HasIndex(x => x.Status);
         });
 
         // ============ Credit Configuration ============

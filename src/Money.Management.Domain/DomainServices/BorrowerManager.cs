@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Volo.Abp.Domain.Repositories;
 using Volo.Abp.Domain.Services;
+using Volo.Abp.Users;
 
 namespace Money.Management.DomainServices
 {
@@ -13,13 +14,52 @@ namespace Money.Management.DomainServices
     {
         private readonly IRepository<Borrower, Guid> _borrowerRepository;
         private readonly IRepository<Credit, Guid> _creditRepository;
+        private readonly ICurrentUser _currentUser;
 
         public BorrowerManager(
             IRepository<Borrower, Guid> borrowerRepository,
-            IRepository<Credit, Guid> creditRepository)
+            IRepository<Credit, Guid> creditRepository,
+            ICurrentUser currentUser)
         {
             _borrowerRepository = borrowerRepository;
             _creditRepository = creditRepository;
+            _currentUser = currentUser;
+        }
+
+        /// <summary>
+        /// Resolves the Borrower record that the currently authenticated user is allowed to view
+        /// as "their own" — first by a direct UserId link (set when a BorrowerApplication is
+        /// approved), falling back to matching the current user's email against a Borrower's
+        /// EmailAddress for borrowers a lender created directly (no linked login account).
+        /// </summary>
+        public async Task<Borrower> GetCurrentBorrowerAsync()
+        {
+            if (!_currentUser.IsAuthenticated)
+            {
+                throw new InvalidOperationException("User is not authenticated.");
+            }
+
+            var currentUserId = _currentUser.Id;
+            if (currentUserId.HasValue)
+            {
+                var byUserId = await _borrowerRepository.FirstOrDefaultAsync(b => b.UserId == currentUserId.Value);
+                if (byUserId != null)
+                {
+                    return byUserId;
+                }
+            }
+
+            var email = _currentUser.Email;
+            if (!string.IsNullOrWhiteSpace(email))
+            {
+                var byEmail = await _borrowerRepository.FirstOrDefaultAsync(b => b.EmailAddress == email);
+                if (byEmail != null)
+                {
+                    return byEmail;
+                }
+            }
+
+            throw new InvalidOperationException("No borrower profile found for the current user.");
         }
 
         public async Task<Borrower> CreateAsync(

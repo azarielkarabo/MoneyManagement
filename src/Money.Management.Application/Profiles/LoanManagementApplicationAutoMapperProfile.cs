@@ -6,6 +6,8 @@ using Money.Management.Services.credits.Dtos;
 using Money.Management.Services.Loans.Dtos;
 using Money.Management.Services.Payments.Dtos;
 using Money.Management.Services.Lenders.Dtos;
+using Money.Management.Services.LenderApplications.Dtos;
+using Money.Management.Services.BorrowerApplications.Dtos;
 using System.Collections.Generic;
 
 namespace Money.Management.Profiles
@@ -70,6 +72,12 @@ namespace Money.Management.Profiles
             // ============ Lender Mappings ============
             // Lender has private setters; AutoMapper reads via getters.
             CreateMap<Lender, LenderDto>();
+
+            // ============ Lender Application Mappings ============
+            CreateMap<LenderApplication, LenderApplicationDto>();
+
+            // ============ Borrower Application Mappings ============
+            CreateMap<BorrowerApplication, BorrowerApplicationDto>();
 
             // ============ Loan Mappings ============
             // All Loan properties have private setters; AutoMapper reads them fine via

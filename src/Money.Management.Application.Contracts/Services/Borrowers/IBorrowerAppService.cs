@@ -23,6 +23,14 @@ namespace Money.Management.Services.Borrowers
 
         Task<BorrowerDto> GetWithDetailsAsync(Guid id);
 
+        // ── Self-service (borrower's own portal) ──────────────────────────────────
+        // Scoped to the calling user's own Borrower record — no Borrowers.* permission
+        // required, since the caller can only ever see/edit their own data.
+        Task<BorrowerDto> GetMyProfileAsync();
+        Task<BorrowerDto> UpdateMyProfileAsync(UpdateBorrowerDto input);
+        Task<PagedResultDto<CreditDto>> GetMyMoneysAsync(GetBorrowerCreditsInput input);
+        Task<PagedResultDto<PaymentDto>> GetMyPaymentsAsync(GetBorrowerPaymentsInput input);
+
         Task<PagedResultDto<CreditDto>> GetBorrowerMoneysAsync(Guid borrowerId, GetBorrowerCreditsInput input);
 
         Task<PagedResultDto<PaymentDto>> GetBorrowerPaymentsAsync(Guid borrowerId, GetBorrowerPaymentsInput input);

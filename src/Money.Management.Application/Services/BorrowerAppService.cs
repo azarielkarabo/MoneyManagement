@@ -235,6 +235,89 @@ namespace Money.Management.Services
             return await GetAsync(id);
         }
 
+        // ── Self-service (borrower's own portal) ──────────────────────────────────
+        // These do not require Borrowers.* permissions — they resolve and act only on the
+        // calling user's own Borrower record (via BorrowerManager.GetCurrentBorrowerAsync),
+        // so there's nothing to gate beyond being authenticated at all.
+
+        [Authorize]
+        public async Task<BorrowerDto> GetMyProfileAsync()
+        {
+            var borrower = await _borrowerManager.GetCurrentBorrowerAsync();
+            return await GetAsync(borrower.Id);
+        }
+
+        [Authorize]
+        public async Task<BorrowerDto> UpdateMyProfileAsync(UpdateBorrowerDto input)
+        {
+            var borrower = await _borrowerManager.GetCurrentBorrowerAsync();
+
+            borrower.UpdatePersonalInfo(input.FirstName, input.LastName, input.IdNumber, input.IdType);
+            borrower.UpdateContactInfo(input.EmailAddress, input.PhoneNumber);
+            borrower.UpdateAddress(input.Address);
+            borrower.UpdateMonthlyIncome(input.MonthlyIncome);
+            if (input.Notes != null)
+                borrower.UpdateNotes(input.Notes);
+
+            await _borrowerRepository.UpdateAsync(borrower);
+
+            return await GetAsync(borrower.Id);
+        }
+
+        [Authorize]
+        public async Task<PagedResultDto<CreditDto>> GetMyMoneysAsync(GetBorrowerCreditsInput input)
+        {
+            var borrower = await _borrowerManager.GetCurrentBorrowerAsync();
+
+            var queryable = await _creditRepository.GetQueryableAsync();
+            queryable = queryable.Where(l => l.BorrowerId == borrower.Id);
+
+            if (input.Status.HasValue)
+            {
+                queryable = queryable.Where(l => l.Status == input.Status.Value);
+            }
+
+            var totalCount = await AsyncExecuter.CountAsync(queryable);
+
+            queryable = queryable
+                .OrderByDescending(l => l.IssuedDate)
+                .Skip(input.SkipCount)
+                .Take(input.MaxResultCount);
+
+            var credits = await AsyncExecuter.ToListAsync(queryable);
+            var dtos = ObjectMapper.Map<List<Credit>, List<CreditDto>>(credits);
+
+            foreach (var dto in dtos)
+            {
+                dto.PaymentProgress = dto.TotalAmount > 0
+                    ? (dto.AmountPaid / dto.TotalAmount) * 100
+                    : 0;
+            }
+
+            return new PagedResultDto<CreditDto>(totalCount, dtos);
+        }
+
+        [Authorize]
+        public async Task<PagedResultDto<PaymentDto>> GetMyPaymentsAsync(GetBorrowerPaymentsInput input)
+        {
+            var borrower = await _borrowerManager.GetCurrentBorrowerAsync();
+
+            var queryable = await _paymentRepository.GetQueryableAsync();
+            queryable = queryable.Where(p => p.BorrowerId == borrower.Id);
+
+            var totalCount = await AsyncExecuter.CountAsync(queryable);
+
+            queryable = queryable
+                .OrderByDescending(p => p.PaymentDate)
+                .Skip(input.SkipCount)
+                .Take(input.MaxResultCount);
+
+            var payments = await AsyncExecuter.ToListAsync(queryable);
+            var dtos = ObjectMapper.Map<List<Payment>, List<PaymentDto>>(payments);
+
+            return new PagedResultDto<PaymentDto>(totalCount, dtos);
+        }
+
         [Authorize(MoneyManagementPermissions.Borrowers.ViewFinancials)]
         public async Task<PagedResultDto<CreditDto>> GetBorrowerMoneysAsync(
             Guid borrowerId,

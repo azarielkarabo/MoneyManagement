@@ -11,6 +11,13 @@ namespace Money.Management.Entities
         public Guid LenderId { get; private set; }
         public Lender Lender { get; private set; }
 
+        /// <summary>
+        /// The IdentityUser that logs in as this borrower, if one has been created (via the
+        /// self-service BorrowerApplication approval flow). Null for borrowers created directly
+        /// by a lender with no linked login account.
+        /// </summary>
+        public Guid? UserId { get; private set; }
+
         // ── Personal Information ──────────────────────────────────────────────────
         public string FirstName { get; private set; }
         public string LastName { get; private set; }
@@ -136,6 +143,13 @@ namespace Money.Management.Entities
         }
 
         public void UpdateNotes(string? notes) => Notes = notes;
+
+        public void AssignUser(Guid userId)
+        {
+            if (UserId.HasValue)
+                throw new InvalidOperationException("This borrower is already linked to a login account.");
+            UserId = userId;
+        }
 
         public void Suspend(string reason)
         {

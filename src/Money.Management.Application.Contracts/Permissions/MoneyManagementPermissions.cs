@@ -69,4 +69,11 @@ public static class MoneyManagementPermissions
         public const string Edit = Default + ".Edit";
         public const string Delete = Default + ".Delete";
     }
+
+    public static class LenderApplications
+    {
+        public const string Default = GroupName + ".LenderApplications";
+        public const string Approve = Default + ".Approve";
+        public const string Reject = Default + ".Reject";
+    }
 }
