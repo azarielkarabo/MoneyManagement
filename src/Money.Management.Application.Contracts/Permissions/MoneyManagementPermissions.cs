@@ -61,4 +61,12 @@ public static class MoneyManagementPermissions
         public const string Delete = Default + ".Delete";
         public const string ManageItems = Default + ".ManageItems";
     }
+
+    public static class Lenders
+    {
+        public const string Default = GroupName + ".Lenders";
+        public const string Create = Default + ".Create";
+        public const string Edit = Default + ".Edit";
+        public const string Delete = Default + ".Delete";
+    }
 }

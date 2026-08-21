@@ -131,15 +131,10 @@ public class MoneyManagementDbContext :
                 .IsRequired()
                 .HasMaxLength(200);
 
-            b.Property(x => x.DateOfBirth)
-                .IsRequired();
-
             // Identification
             b.Property(x => x.IdNumber)
                 .IsRequired()
                 .HasMaxLength(13);
-
-            b.Property(x => x.IdExpiryDate);
 
             // Contact Information
             b.Property(x => x.EmailAddress)
@@ -150,52 +145,14 @@ public class MoneyManagementDbContext :
                 .IsRequired()
                 .HasMaxLength(20);
 
-            b.Property(x => x.AlternativePhoneNumber)
-                .HasMaxLength(20);
-
-            // Address Information
-            b.Property(x => x.StreetAddress)
+            b.Property(x => x.Address)
                 .IsRequired()
                 .HasMaxLength(500);
 
-            b.Property(x => x.City)
-                .IsRequired()
-                .HasMaxLength(100);
-
-            b.Property(x => x.Province)
-                .IsRequired()
-                .HasMaxLength(100);
-
-            b.Property(x => x.PostalCode)
-                .IsRequired()
-                .HasMaxLength(20);
-
-            b.Property(x => x.Country)
-                .IsRequired()
-                .HasMaxLength(100);
-
-            // Employment & Income
-            b.Property(x => x.Employer)
-                .HasMaxLength(200);
-
-            b.Property(x => x.JobTitle)
-                .HasMaxLength(200);
-
+            // Income
             b.Property(x => x.MonthlyIncome)
                 .IsRequired()
                 .HasColumnType("decimal(18,2)");
-
-            b.Property(x => x.EmploymentStartDate);
-
-            // Emergency Contact
-            b.Property(x => x.EmergencyContactName)
-                .HasMaxLength(200);
-
-            b.Property(x => x.EmergencyContactPhone)
-                .HasMaxLength(20);
-
-            b.Property(x => x.EmergencyContactRelationship)
-                .HasMaxLength(100);
 
             // Financial Summary
             b.Property(x => x.TotalBorrowed)
@@ -209,11 +166,6 @@ public class MoneyManagementDbContext :
 
             b.Property(x => x.DefaultAmount)
                 .HasColumnType("decimal(18,2)");
-
-            // Profile
-            b.Property(x => x.AvatarUrl).HasMaxLength(500);
-            b.Property(x => x.SuspensionReason).HasMaxLength(1000);
-            b.Property(x => x.BlacklistReason).HasMaxLength(1000);
 
             // Miscellaneous
             b.Property(x => x.Notes)
@@ -240,7 +192,6 @@ public class MoneyManagementDbContext :
             b.HasIndex(x => x.EmailAddress);
             b.HasIndex(x => x.PhoneNumber);
             b.HasIndex(x => new { x.LenderId, x.Status });
-            b.HasIndex(x => x.IsKycVerified);
         });
 
         // ============ Credit Configuration ============

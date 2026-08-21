@@ -1,8 +1,10 @@
 using Money.Management.DomainServices;
 using Money.Management.Entities;
 using Money.Management.Enums;
+using Money.Management.Permissions;
 using Money.Management.Services.Loans;
 using Money.Management.Services.Loans.Dtos;
+using Microsoft.AspNetCore.Authorization;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -37,12 +39,14 @@ namespace Money.Management.Services
 
         // ── CRUD ──────────────────────────────────────────────────────────────────
 
+        [Authorize(MoneyManagementPermissions.Loans.Default)]
         public async Task<LoanDto> GetLoanAsync(Guid id)
         {
             var loan = await _loanRepository.GetAsync(id);
             return await ToLoanDtoAsync(loan);
         }
 
+        [Authorize(MoneyManagementPermissions.Loans.Default)]
         public async Task<PagedResultDto<LoanDto>> GetLoansAsync(GetLoansInput input)
         {
             var queryable = await _loanRepository.GetQueryableAsync();
@@ -75,6 +79,7 @@ namespace Money.Management.Services
             return new PagedResultDto<LoanDto>(totalCount, dtos);
         }
 
+        [Authorize(MoneyManagementPermissions.Loans.Create)]
         public async Task<LoanDto> CreateLoanAsync(CreateLoanDto input)
         {
             // LoanManager verifies the borrower exists and delegates construction to the entity
@@ -92,6 +97,7 @@ namespace Money.Management.Services
             return await GetLoanAsync(loan.Id);
         }
 
+        [Authorize(MoneyManagementPermissions.Loans.Delete)]
         public async Task DeleteLoanAsync(Guid id)
         {
             var loan = await _loanRepository.GetAsync(id);
@@ -106,12 +112,14 @@ namespace Money.Management.Services
 
         // ── Workflow ──────────────────────────────────────────────────────────────
 
+        [Authorize(MoneyManagementPermissions.Loans.Edit)]
         public async Task<LoanDto> ApproveLoanAsync(Guid id)
         {
             var loan = await _loanManager.ApproveAsync(id);
             return await ToLoanDtoAsync(loan);
         }
 
+        [Authorize(MoneyManagementPermissions.Loans.Edit)]
         public async Task<LoanDto> MarkAsDefaultedAsync(Guid id)
         {
             await _loanManager.MarkAsDefaultedAsync(id);
@@ -120,6 +128,7 @@ namespace Money.Management.Services
 
         // ── Repayments ────────────────────────────────────────────────────────────
 
+        [Authorize(MoneyManagementPermissions.Loans.MakeRepayment)]
         public async Task<LoanRepaymentDto> MakeRepaymentAsync(Guid loanId, MakeRepaymentDto input)
         {
             var repayment = await _loanManager.MakeRepaymentAsync(
@@ -134,6 +143,7 @@ namespace Money.Management.Services
             return ObjectMapper.Map<LoanRepayment, LoanRepaymentDto>(repayment);
         }
 
+        [Authorize(MoneyManagementPermissions.Loans.Default)]
         public async Task<PagedResultDto<LoanRepaymentDto>> GetLoanRepaymentsAsync(Guid loanId)
         {
             var repayments = await _repaymentRepository.GetListAsync(r => r.LoanId == loanId);
@@ -145,6 +155,7 @@ namespace Money.Management.Services
 
         // ── Reports ───────────────────────────────────────────────────────────────
 
+        [Authorize(MoneyManagementPermissions.Loans.Default)]
         public async Task<LoanSummaryReportDto> GetLoanSummaryReportAsync()
         {
             var loans = await _loanRepository.GetListAsync();
@@ -166,6 +177,7 @@ namespace Money.Management.Services
 
         // ── Calculations ──────────────────────────────────────────────────────────
 
+        [Authorize(MoneyManagementPermissions.Loans.Default)]
         public Task<LoanCalculationDto> CalculateLoanAsync(LoanCalculationInput input)
         {
             var termYears = input.TermMonths / 12m;
@@ -190,6 +202,7 @@ namespace Money.Management.Services
             return Task.FromResult(result);
         }
 
+        [Authorize(MoneyManagementPermissions.Loans.Default)]
         public Task<AmortizationScheduleDto> GetAmortizationScheduleAsync(
             AmortizationScheduleInput input)
         {

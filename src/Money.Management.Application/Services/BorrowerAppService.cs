@@ -56,6 +56,7 @@ namespace Money.Management.Services
             return lender.Id;
         }
 
+        [Authorize(MoneyManagementPermissions.Borrowers.Default)]
         public async Task<BorrowerDto> GetAsync(Guid id)
         {
             var borrower = await _borrowerRepository.GetAsync(id);
@@ -69,6 +70,7 @@ namespace Money.Management.Services
             return dto;
         }
 
+        [Authorize(MoneyManagementPermissions.Borrowers.Default)]
         public async Task<PagedResultDto<BorrowerDto>> GetListAsync(GetBorrowersInput input)
         {
             var lenderId = await GetCurrentLenderIdAsync();
@@ -117,6 +119,7 @@ namespace Money.Management.Services
             return new PagedResultDto<BorrowerDto>(totalCount, dtos);
         }
 
+        [Authorize(MoneyManagementPermissions.Borrowers.Create)]
         public async Task<BorrowerDto> CreateAsync(CreateBorrowerDto input)
         {
             var lenderId = await GetCurrentLenderIdAsync();
@@ -139,15 +142,12 @@ namespace Money.Management.Services
                 input.IdType,
                 input.EmailAddress,
                 input.PhoneNumber,
-                input.StreetAddress,
-                input.City,
-                input.Province,
-                input.PostalCode,
-                input.Country,
-                input.DateOfBirth,
-                input.EmploymentStatus,
+                input.Address,
                 input.MonthlyIncome
             );
+
+            if (input.Notes != null)
+                borrower.UpdateNotes(input.Notes);
 
             await _borrowerRepository.InsertAsync(borrower);
             await CurrentUnitOfWork.SaveChangesAsync();
@@ -158,6 +158,7 @@ namespace Money.Management.Services
             return await GetAsync(borrower.Id);
         }
 
+        [Authorize(MoneyManagementPermissions.Borrowers.Edit)]
         public async Task<BorrowerDto> UpdateAsync(Guid id, UpdateBorrowerDto input)
         {
             var lenderId = await GetCurrentLenderIdAsync();
@@ -184,36 +185,16 @@ namespace Money.Management.Services
             borrower.UpdatePersonalInfo(
                 input.FirstName,
                 input.LastName,
-                input.DateOfBirth,
-                input.MaritalStatus,
-                input.NumberOfDependents,
                 input.IdNumber,
-                input.IdType,
-                input.IdExpiryDate);
+                input.IdType);
 
             borrower.UpdateContactInfo(
                 input.EmailAddress,
-                input.PhoneNumber,
-                input.AlternativePhoneNumber);
+                input.PhoneNumber);
 
-            borrower.UpdateAddress(
-                input.StreetAddress,
-                input.City,
-                input.Province,
-                input.PostalCode,
-                input.Country);
+            borrower.UpdateAddress(input.Address);
 
-            borrower.UpdateEmploymentInfo(
-                input.EmploymentStatus,
-                input.Employer,
-                input.JobTitle,
-                input.MonthlyIncome,
-                input.EmploymentStartDate);
-
-            borrower.UpdateEmergencyContact(
-                input.EmergencyContactName,
-                input.EmergencyContactPhone,
-                input.EmergencyContactRelationship);
+            borrower.UpdateMonthlyIncome(input.MonthlyIncome);
 
             if (input.Notes != null)
                 borrower.UpdateNotes(input.Notes);
@@ -223,6 +204,7 @@ namespace Money.Management.Services
             return await GetAsync(id);
         }
 
+        [Authorize(MoneyManagementPermissions.Borrowers.Delete)]
         public async Task DeleteAsync(Guid id)
         {
             var lenderId = await GetCurrentLenderIdAsync();
@@ -247,14 +229,16 @@ namespace Money.Management.Services
             await _borrowerRepository.DeleteAsync(id);
         }
 
+        [Authorize(MoneyManagementPermissions.Borrowers.Default)]
         public async Task<BorrowerDto> GetWithDetailsAsync(Guid id)
         {
             return await GetAsync(id);
         }
 
+        [Authorize(MoneyManagementPermissions.Borrowers.ViewFinancials)]
         public async Task<PagedResultDto<CreditDto>> GetBorrowerMoneysAsync(
             Guid borrowerId,
-            GetCreditsInput input)
+            GetBorrowerCreditsInput input)
         {
             var lenderId = await GetCurrentLenderIdAsync();
 
@@ -295,9 +279,10 @@ namespace Money.Management.Services
             return new PagedResultDto<CreditDto>(totalCount, dtos);
         }
 
+        [Authorize(MoneyManagementPermissions.Borrowers.ViewFinancials)]
         public async Task<PagedResultDto<PaymentDto>> GetBorrowerPaymentsAsync(
             Guid borrowerId,
-            GetPaymentsInput input)
+            GetBorrowerPaymentsInput input)
         {
             var lenderId = await GetCurrentLenderIdAsync();
 
@@ -324,6 +309,7 @@ namespace Money.Management.Services
             return new PagedResultDto<PaymentDto>(totalCount, dtos);
         }
 
+        [Authorize(MoneyManagementPermissions.Borrowers.Edit)]
         public async Task RecalculateFinancialsAsync(Guid id)
         {
             var lenderId = await GetCurrentLenderIdAsync();
@@ -338,6 +324,7 @@ namespace Money.Management.Services
             await _borrowerManager.UpdateFinancialSummaryAsync(id);
         }
 
+        [Authorize(MoneyManagementPermissions.Borrowers.Default)]
         public async Task<bool> CheckIdNumberAvailabilityAsync(string idNumber)
         {
             var lenderId = await GetCurrentLenderIdAsync();
@@ -345,19 +332,7 @@ namespace Money.Management.Services
             return !exists;
         }
 
-        public async Task VerifyKycAsync(Guid borrowerId)
-        {
-            var lenderId = await GetCurrentLenderIdAsync();
-            var borrower = await _borrowerRepository.GetAsync(borrowerId);
-
-            if (borrower.LenderId != lenderId)
-            {
-                throw new UnauthorizedAccessException("You do not have permission to update this borrower.");
-            }
-
-            await _borrowerManager.UpdateKycStatusAsync(borrowerId, true);
-        }
-
+        [Authorize(MoneyManagementPermissions.Borrowers.Edit)]
         public async Task SuspendBorrowerAsync(Guid borrowerId, string reason)
         {
             var lenderId = await GetCurrentLenderIdAsync();
@@ -371,6 +346,7 @@ namespace Money.Management.Services
             await _borrowerManager.SuspendBorrowerAsync(borrowerId, reason);
         }
 
+        [Authorize(MoneyManagementPermissions.Borrowers.Edit)]
         public async Task BlacklistBorrowerAsync(Guid borrowerId, string reason)
         {
             var lenderId = await GetCurrentLenderIdAsync();
@@ -384,6 +360,7 @@ namespace Money.Management.Services
             await _borrowerManager.BlacklistBorrowerAsync(borrowerId, reason);
         }
 
+        [Authorize(MoneyManagementPermissions.Borrowers.ViewFinancials)]
         public async Task<decimal> GetDebtToIncomeRatioAsync(Guid borrowerId)
         {
             var lenderId = await GetCurrentLenderIdAsync();
@@ -397,34 +374,9 @@ namespace Money.Management.Services
             return await _borrowerManager.GetDebtToIncomeRatioAsync(borrowerId);
         }
 
-        // ── Profile management ────────────────────────────────────────────────────
-
-        public async Task<BorrowerDto> SetAvatarAsync(Guid id, string avatarUrl)
-        {
-            var lenderId = await GetCurrentLenderIdAsync();
-            var borrower = await _borrowerRepository.GetAsync(id);
-            if (borrower.LenderId != lenderId)
-                throw new UnauthorizedAccessException("You do not have permission to update this borrower.");
-
-            borrower.SetAvatar(avatarUrl);
-            await _borrowerRepository.UpdateAsync(borrower);
-            return await GetAsync(id);
-        }
-
-        public async Task<BorrowerDto> UpdateCreditScoreAsync(Guid id, int creditScore)
-        {
-            var lenderId = await GetCurrentLenderIdAsync();
-            var borrower = await _borrowerRepository.GetAsync(id);
-            if (borrower.LenderId != lenderId)
-                throw new UnauthorizedAccessException("You do not have permission to update this borrower.");
-
-            borrower.UpdateCreditScore(creditScore);
-            await _borrowerRepository.UpdateAsync(borrower);
-            return await GetAsync(id);
-        }
-
         // ── Document management ───────────────────────────────────────────────────
 
+        [Authorize(MoneyManagementPermissions.Borrowers.Edit)]
         public async Task<BorrowerDocumentDto> UploadDocumentAsync(Guid borrowerId, UploadBorrowerDocumentDto input)
         {
             var lenderId = await GetCurrentLenderIdAsync();
@@ -448,6 +400,7 @@ namespace Money.Management.Services
             return ObjectMapper.Map<BorrowerDocument, BorrowerDocumentDto>(document);
         }
 
+        [Authorize(MoneyManagementPermissions.Borrowers.Default)]
         public async Task<PagedResultDto<BorrowerDocumentDto>> GetDocumentsAsync(
             Guid borrowerId,
             PagedAndSortedResultRequestDto input)
@@ -473,6 +426,7 @@ namespace Money.Management.Services
                 ObjectMapper.Map<List<BorrowerDocument>, List<BorrowerDocumentDto>>(docs));
         }
 
+        [Authorize(MoneyManagementPermissions.Borrowers.Edit)]
         public async Task<BorrowerDocumentDto> VerifyDocumentAsync(Guid borrowerId, Guid documentId)
         {
             var lenderId = await GetCurrentLenderIdAsync();
@@ -491,6 +445,7 @@ namespace Money.Management.Services
             return ObjectMapper.Map<BorrowerDocument, BorrowerDocumentDto>(document);
         }
 
+        [Authorize(MoneyManagementPermissions.Borrowers.Edit)]
         public async Task<BorrowerDocumentDto> RejectDocumentAsync(
             Guid borrowerId,
             Guid documentId,
@@ -512,6 +467,7 @@ namespace Money.Management.Services
 
         // ── Bank account management ───────────────────────────────────────────────
 
+        [Authorize(MoneyManagementPermissions.Borrowers.Edit)]
         public async Task<BorrowerBankAccountDto> AddBankAccountAsync(
             Guid borrowerId,
             AddBorrowerBankAccountDto input)
@@ -536,6 +492,7 @@ namespace Money.Management.Services
             return ObjectMapper.Map<BorrowerBankAccount, BorrowerBankAccountDto>(account);
         }
 
+        [Authorize(MoneyManagementPermissions.Borrowers.Default)]
         public async Task<IReadOnlyList<BorrowerBankAccountDto>> GetBankAccountsAsync(Guid borrowerId)
         {
             var lenderId = await GetCurrentLenderIdAsync();
@@ -547,6 +504,7 @@ namespace Money.Management.Services
                 borrower.BankAccounts);
         }
 
+        [Authorize(MoneyManagementPermissions.Borrowers.Edit)]
         public async Task SetPrimaryBankAccountAsync(Guid borrowerId, Guid accountId)
         {
             var lenderId = await GetCurrentLenderIdAsync();
@@ -558,6 +516,7 @@ namespace Money.Management.Services
             await _borrowerRepository.UpdateAsync(borrower);
         }
 
+        [Authorize(MoneyManagementPermissions.Borrowers.Edit)]
         public async Task VerifyBankAccountAsync(Guid borrowerId, Guid accountId)
         {
             var lenderId = await GetCurrentLenderIdAsync();
@@ -572,6 +531,7 @@ namespace Money.Management.Services
             await _borrowerRepository.UpdateAsync(borrower);
         }
 
+        [Authorize(MoneyManagementPermissions.Borrowers.Edit)]
         public async Task DeleteBankAccountAsync(Guid borrowerId, Guid accountId)
         {
             var lenderId = await GetCurrentLenderIdAsync();

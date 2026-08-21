@@ -30,13 +30,7 @@ namespace Money.Management.DomainServices
             IdentificationType idType,
             string email,
             string phoneNumber,
-            string streetAddress,
-            string city,
-            string province,
-            string postalCode,
-            string country,
-            DateTime dateOfBirth,
-            EmploymentStatus employmentStatus,
+            string address,
             decimal monthlyIncome)
         {
             // Check for duplicate ID number
@@ -48,13 +42,6 @@ namespace Money.Management.DomainServices
                 throw new BorrowerAlreadyExistsException(idNumber);
             }
 
-            // Validate age (optional - adjust as per business rules)
-            var age = DateTime.UtcNow.Year - dateOfBirth.Year;
-            if (age < 18)
-            {
-                throw new InvalidOperationException("Borrower must be at least 18 years old.");
-            }
-
             var borrower = new Borrower(
                 GuidGenerator.Create(),
                 lenderId,
@@ -64,13 +51,7 @@ namespace Money.Management.DomainServices
                 idType,
                 email,
                 phoneNumber,
-                streetAddress,
-                city,
-                province,
-                postalCode,
-                country,
-                dateOfBirth,
-                employmentStatus,
+                address,
                 monthlyIncome
             );
 
@@ -103,13 +84,6 @@ namespace Money.Management.DomainServices
 
             borrower.UpdateFinancialSummary(totalBorrowed, outstanding, paid, defaultAmount, totalMoneys, defaultedMoneys);
 
-            await _borrowerRepository.UpdateAsync(borrower);
-        }
-
-        public async Task UpdateKycStatusAsync(Guid borrowerId, bool isVerified)
-        {
-            var borrower = await _borrowerRepository.GetAsync(borrowerId);
-            borrower.UpdateKycStatus(isVerified);
             await _borrowerRepository.UpdateAsync(borrower);
         }
 

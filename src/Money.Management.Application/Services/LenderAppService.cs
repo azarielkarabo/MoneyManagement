@@ -1,7 +1,9 @@
 ﻿// Money.Management/Services/Lenders/LenderAppService.cs
 using Money.Management.DomainServices;
 using Money.Management.Entities;
+using Money.Management.Permissions;
 using Money.Management.Services.Lenders.Dtos;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using System;
 using System.Collections.Generic;
@@ -36,6 +38,7 @@ namespace Money.Management.Services.Lenders
             _userManager = userManager;
         }
 
+        [Authorize(MoneyManagementPermissions.Lenders.Default)]
         public async Task<LenderDto> GetAsync(Guid id)
         {
             var lender = await _lenderRepository.GetAsync(id);
@@ -44,12 +47,14 @@ namespace Money.Management.Services.Lenders
             return dto;
         }
 
+        [Authorize(MoneyManagementPermissions.Lenders.Default)]
         public async Task<LenderDto> GetCurrentLenderAsync()
         {
             var lender = await _lenderManager.GetCurrentLenderAsync();
             return await GetAsync(lender.Id);
         }
 
+        [Authorize(MoneyManagementPermissions.Lenders.Default)]
         public async Task<PagedResultDto<LenderDto>> GetListAsync(GetLendersInput input)
         {
             var queryable = await _lenderRepository.GetQueryableAsync();
@@ -77,6 +82,7 @@ namespace Money.Management.Services.Lenders
             return new PagedResultDto<LenderDto>(totalCount, dtos);
         }
 
+        [Authorize(MoneyManagementPermissions.Lenders.Create)]
         public async Task<LenderDto> CreateAsync(CreateLenderDto input)
         {
             var userCreate = input.UserCreate;
@@ -102,6 +108,7 @@ namespace Money.Management.Services.Lenders
             return await GetAsync(lender.Id);
         }
 
+        [Authorize(MoneyManagementPermissions.Lenders.Edit)]
         public async Task<LenderDto> UpdateAsync(Guid id, UpdateLenderDto input)
         {
             var lender = await _lenderRepository.GetAsync(id);
@@ -123,24 +130,28 @@ namespace Money.Management.Services.Lenders
             return await GetAsync(id);
         }
 
+        [Authorize(MoneyManagementPermissions.Lenders.Delete)]
         public async Task DeleteAsync(Guid id)
         {
             // Use domain service to delete (includes validation)
             await _lenderManager.DeleteAsync(id);
         }
 
+        [Authorize(MoneyManagementPermissions.Lenders.Default)]
         public async Task<LenderStatisticsDto> GetStatisticsAsync(Guid id)
         {
             var statistics = await _lenderManager.GetStatisticsAsync(id);
             return statistics;
         }
 
+        [Authorize(MoneyManagementPermissions.Lenders.Default)]
         public async Task<LenderStatisticsDto> GetCurrentLenderStatisticsAsync()
         {
             var lender = await _lenderManager.GetCurrentLenderAsync();
             return await GetStatisticsAsync(lender.Id);
         }
 
+        [Authorize(MoneyManagementPermissions.Lenders.Edit)]
         public async Task<LenderDto> UpdateProfileAsync(Guid id, UpdateLenderProfileDto input)
         {
             var lender = await _lenderRepository.GetAsync(id);
@@ -161,6 +172,7 @@ namespace Money.Management.Services.Lenders
             return await GetAsync(id);
         }
 
+        [Authorize(MoneyManagementPermissions.Lenders.Edit)]
         public async Task<LenderDto> SetAvatarAsync(Guid id, string avatarUrl)
         {
             var lender = await _lenderRepository.GetAsync(id);
@@ -169,34 +181,40 @@ namespace Money.Management.Services.Lenders
             return await GetAsync(id);
         }
 
+        [Authorize(MoneyManagementPermissions.Lenders.Default)]
         public async Task<LenderDto> GetByUserIdAsync(Guid userId)
         {
             var lender = await _lenderManager.GetByUserIdAsync(userId);
             return await GetAsync(lender.Id);
         }
 
+        [Authorize(MoneyManagementPermissions.Lenders.Default)]
         public async Task<int> GetActiveLendersCountAsync()
         {
             return await _lenderRepository.CountAsync();
         }
 
+        [Authorize(MoneyManagementPermissions.Lenders.Default)]
         public async Task<decimal> GetTotalMoneysAmountAsync(Guid lenderId)
         {
             var credits = await _creditRepository.GetListAsync(c => c.LenderId == lenderId);
             return credits.Sum(c => c.TotalAmount);
         }
 
+        [Authorize(MoneyManagementPermissions.Lenders.Default)]
         public async Task<decimal> GetTotalOutstandingAsync(Guid lenderId)
         {
             var credits = await _creditRepository.GetListAsync(c => c.LenderId == lenderId);
             return credits.Sum(c => c.OutstandingAmount);
         }
 
+        [Authorize(MoneyManagementPermissions.Lenders.Default)]
         public async Task<int> GetTotalBorrowersAsync(Guid lenderId)
         {
             return await _borrowerRepository.CountAsync(b => b.LenderId == lenderId);
         }
 
+        [Authorize(MoneyManagementPermissions.Lenders.Default)]
         public async Task<int> GetTotalCreditsAsync(Guid lenderId)
         {
             return await _creditRepository.CountAsync(c => c.LenderId == lenderId);

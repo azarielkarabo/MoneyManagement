@@ -1,6 +1,8 @@
 using Money.Management.Entities;
+using Money.Management.Permissions;
 using Money.Management.Services.Budgets;
 using Money.Management.Services.Budgets.Dtos;
+using Microsoft.AspNetCore.Authorization;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -26,6 +28,7 @@ namespace Money.Management.Services
 
         // ── CRUD ──────────────────────────────────────────────────────────────────
 
+        [Authorize(MoneyManagementPermissions.Budgets.Default)]
         public async Task<BudgetDto> GetBudgetAsync(Guid id)
         {
             var budget = await _budgetRepository.GetAsync(id);
@@ -33,6 +36,7 @@ namespace Money.Management.Services
             return ToDtoWithItems(budget, items);
         }
 
+        [Authorize(MoneyManagementPermissions.Budgets.Default)]
         public async Task<PagedResultDto<BudgetDto>> GetBudgetsAsync(GetBudgetsInput input)
         {
             var queryable = await _budgetRepository.GetQueryableAsync();
@@ -64,6 +68,7 @@ namespace Money.Management.Services
             return new PagedResultDto<BudgetDto>(totalCount, dtos);
         }
 
+        [Authorize(MoneyManagementPermissions.Budgets.Create)]
         public async Task<BudgetDto> CreateBudgetAsync(CreateBudgetDto input)
         {
             var existing = await _budgetRepository.FindAsync(
@@ -88,6 +93,7 @@ namespace Money.Management.Services
             return ToDtoWithItems(budget, Array.Empty<BudgetItem>());
         }
 
+        [Authorize(MoneyManagementPermissions.Budgets.Delete)]
         public async Task DeleteBudgetAsync(Guid id)
         {
             await _budgetRepository.DeleteAsync(id);
@@ -95,6 +101,7 @@ namespace Money.Management.Services
 
         // ── Items ─────────────────────────────────────────────────────────────────
 
+        [Authorize(MoneyManagementPermissions.Budgets.ManageItems)]
         public async Task<BudgetItemDto> AddBudgetItemAsync(Guid budgetId, AddBudgetItemDto input)
         {
             var budget = await LoadBudgetWithItemsAsync(budgetId);
@@ -112,6 +119,7 @@ namespace Money.Management.Services
             return ObjectMapper.Map<BudgetItem, BudgetItemDto>(item);
         }
 
+        [Authorize(MoneyManagementPermissions.Budgets.ManageItems)]
         public async Task<BudgetItemDto> RecordActualSpendingAsync(
             Guid budgetId, Guid itemId, decimal actualAmount)
         {
@@ -128,6 +136,7 @@ namespace Money.Management.Services
 
         // ── Reports ───────────────────────────────────────────────────────────────
 
+        [Authorize(MoneyManagementPermissions.Budgets.Default)]
         public async Task<CashFlowReportDto> GetCashFlowReportAsync(Guid budgetId)
         {
             var budget = await LoadBudgetWithItemsAsync(budgetId);
@@ -144,6 +153,7 @@ namespace Money.Management.Services
             };
         }
 
+        [Authorize(MoneyManagementPermissions.Budgets.Default)]
         public async Task<BudgetVarianceDto> GetBudgetVarianceAsync(Guid budgetId)
         {
             var budget = await LoadBudgetWithItemsAsync(budgetId);

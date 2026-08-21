@@ -2,8 +2,10 @@
 using Money.Management.DomainServices;
 using Money.Management.Entities;
 using Money.Management.Enums;
+using Money.Management.Permissions;
 using Money.Management.Services.credits;
 using Money.Management.Services.credits.Dtos;
+using Microsoft.AspNetCore.Authorization;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -32,6 +34,7 @@ namespace Money.Management.Services
             _paymentRepository = paymentRepository;
         }
 
+        [Authorize(MoneyManagementPermissions.Credits.Default)]
         public async Task<CreditDto> GetAsync(Guid id)
         {
             var credit = await _creditRepository.GetAsync(id);
@@ -45,6 +48,7 @@ namespace Money.Management.Services
             return dto;
         }
 
+        [Authorize(MoneyManagementPermissions.Credits.Default)]
         public async Task<PagedResultDto<CreditDto>> GetListAsync(GetCreditsInput input)
         {
             var queryable = await _creditRepository.GetQueryableAsync();
@@ -96,6 +100,7 @@ namespace Money.Management.Services
             return new PagedResultDto<CreditDto>(totalCount, dtos);
         }
 
+        [Authorize(MoneyManagementPermissions.Credits.Create)]
         public async Task<CreditDto> CreateAsync(CreateCreditDto input)
         {
             var credit = new Credit(
@@ -108,6 +113,7 @@ namespace Money.Management.Services
                 input.DueDate,
                 input.Purpose
             );
+            credit.Notes = input.Description;
 
             await _creditRepository.InsertAsync(credit);
             await CurrentUnitOfWork.SaveChangesAsync();
@@ -118,6 +124,7 @@ namespace Money.Management.Services
             return await GetAsync(credit.Id);
         }
 
+        [Authorize(MoneyManagementPermissions.Credits.Edit)]
         public async Task<CreditDto> UpdateAsync(Guid id, UpdateCreditDto input)
         {
             var credit = await _creditRepository.GetAsync(id);
@@ -133,6 +140,7 @@ namespace Money.Management.Services
             credit.TermMonths = input.TermMonths;
             credit.DueDate = input.DueDate;
             credit.Purpose = input.Purpose;
+            credit.Notes = input.Notes;
 
             // Recalculate amounts
             credit.CalculateMoneyAmounts();
@@ -145,6 +153,7 @@ namespace Money.Management.Services
             return await GetAsync(id);
         }
 
+        [Authorize(MoneyManagementPermissions.Credits.Delete)]
         public async Task DeleteAsync(Guid id)
         {
             var credit = await _creditRepository.GetAsync(id);
@@ -164,6 +173,7 @@ namespace Money.Management.Services
             await UpdateBorrowerFinancialsAsync(borrowerId);
         }
 
+        [Authorize(MoneyManagementPermissions.Credits.Default)]
         public async Task<PagedResultDto<OverdueCreditDto>> GetOverdueMoneysAsync(GetOverdueCreditsInput input)
         {
             var queryable = await _creditRepository.GetQueryableAsync();
@@ -231,6 +241,7 @@ namespace Money.Management.Services
             return new PagedResultDto<OverdueCreditDto>(totalCount, dtos);
         }
 
+        [Authorize(MoneyManagementPermissions.Credits.Approve)]
         public async Task<CreditDto> ApproveAsync(Guid id)
         {
             var credit = await _creditRepository.GetAsync(id);
@@ -240,6 +251,7 @@ namespace Money.Management.Services
             return await GetAsync(id);
         }
 
+        [Authorize(MoneyManagementPermissions.Credits.Approve)]
         public async Task<CreditDto> ActivateAsync(Guid id)
         {
             var credit = await _creditRepository.GetAsync(id);
@@ -249,6 +261,7 @@ namespace Money.Management.Services
             return await GetAsync(id);
         }
 
+        [Authorize(MoneyManagementPermissions.Credits.WriteOff)]
         public async Task<CreditDto> SuspendAsync(Guid id)
         {
             var credit = await _creditRepository.GetAsync(id);
@@ -264,6 +277,7 @@ namespace Money.Management.Services
             return await GetAsync(id);
         }
 
+        [Authorize(MoneyManagementPermissions.Credits.Edit)]
         public async Task CheckAndUpdateOverdueMoneysAsync()
         {
             var activeCredits = await _creditRepository.GetListAsync(
@@ -277,6 +291,7 @@ namespace Money.Management.Services
             }
         }
 
+        [Authorize(MoneyManagementPermissions.Credits.Default)]
         public async Task<CreditCalculationDto> CalculateMoneyAsync(CreditCalculationInput input)
         {
             var interestAmount = input.PrincipalAmount * (input.InterestRate / 100);

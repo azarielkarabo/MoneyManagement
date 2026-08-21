@@ -15,52 +15,21 @@ namespace Money.Management.Entities
         public string FirstName { get; private set; }
         public string LastName { get; private set; }
         public string FullName { get; private set; }
-        public DateTime DateOfBirth { get; private set; }
 
         // ── Identification ────────────────────────────────────────────────────────
         public string IdNumber { get; private set; }
         public IdentificationType IdType { get; private set; }
-        public DateTime IdExpiryDate { get; private set; }
 
         // ── Contact Information ───────────────────────────────────────────────────
         public string EmailAddress { get; private set; }
         public string PhoneNumber { get; private set; }
-        public string AlternativePhoneNumber { get; private set; }
+        public string Address { get; private set; }
 
-        // ── Address ───────────────────────────────────────────────────────────────
-        public string StreetAddress { get; private set; }
-        public string City { get; private set; }
-        public string Province { get; private set; }
-        public string PostalCode { get; private set; }
-        public string Country { get; private set; }
-
-        // ── Employment & Income ───────────────────────────────────────────────────
-        public EmploymentStatus EmploymentStatus { get; private set; }
-        public string Employer { get; private set; }
-        public string JobTitle { get; private set; }
+        // ── Income ────────────────────────────────────────────────────────────────
         public decimal MonthlyIncome { get; private set; }
-        public DateTime EmploymentStartDate { get; private set; }
 
-        // ── Personal Details ──────────────────────────────────────────────────────
-        public MaritalStatus MaritalStatus { get; private set; }
-        public int? NumberOfDependents { get; private set; }
-
-        // ── Emergency Contact ─────────────────────────────────────────────────────
-        public string EmergencyContactName { get; private set; }
-        public string EmergencyContactPhone { get; private set; }
-        public string EmergencyContactRelationship { get; private set; }
-
-        // ── Compliance & Verification ─────────────────────────────────────────────
+        // ── Status ────────────────────────────────────────────────────────────────
         public BorrowerStatus Status { get; private set; }
-        public bool IsKycVerified { get; private set; }
-        public DateTime? KycVerificationDate { get; private set; }
-        public string? SuspensionReason { get; private set; }
-        public string? BlacklistReason { get; private set; }
-
-        // ── Profile ───────────────────────────────────────────────────────────────
-        public string? AvatarUrl { get; private set; }
-        public int CreditScore { get; private set; }
-        public CreditRating CreditRating { get; private set; }
 
         // ── Financial Summary ─────────────────────────────────────────────────────
         public decimal TotalBorrowed { get; private set; }
@@ -70,9 +39,7 @@ namespace Money.Management.Entities
         public int TotalMoneys { get; private set; }
         public int DefaultedMoneys { get; private set; }
 
-        // ── Tracking ──────────────────────────────────────────────────────────────
-        public DateTime? LastActivityDate { get; private set; }
-        public string Notes { get; private set; }
+        public string? Notes { get; private set; }
 
         // ── Navigation properties ─────────────────────────────────────────────────
         public ICollection<Credit> Credits { get; private set; }
@@ -100,13 +67,7 @@ namespace Money.Management.Entities
             IdentificationType idType,
             string email,
             string phoneNumber,
-            string streetAddress,
-            string city,
-            string province,
-            string postalCode,
-            string country,
-            DateTime dateOfBirth,
-            EmploymentStatus employmentStatus,
+            string address,
             decimal monthlyIncome
         ) : base(id)
         {
@@ -129,18 +90,10 @@ namespace Money.Management.Entities
             IdType = idType;
             EmailAddress = email;
             PhoneNumber = phoneNumber;
-            StreetAddress = streetAddress;
-            City = city;
-            Province = province;
-            PostalCode = postalCode;
-            Country = country;
-            DateOfBirth = dateOfBirth;
-            EmploymentStatus = employmentStatus;
+            Address = address;
             MonthlyIncome = monthlyIncome;
 
             Status = BorrowerStatus.New;
-            IsKycVerified = false;
-            CreditRating = CreditRating.Unrated;
             TotalBorrowed = 0;
             Outstanding = 0;
             Paid = 0;
@@ -155,79 +108,40 @@ namespace Money.Management.Entities
 
         // ── Domain methods ────────────────────────────────────────────────────────
 
-        public void UpdatePersonalInfo(
-            string firstName,
-            string lastName,
-            DateTime dateOfBirth,
-            MaritalStatus maritalStatus,
-            int? numberOfDependents,
-            string idNumber,
-            IdentificationType idType,
-            DateTime idExpiryDate)
+        public void UpdatePersonalInfo(string firstName, string lastName, string idNumber, IdentificationType idType)
         {
             if (!string.IsNullOrWhiteSpace(firstName)) FirstName = firstName;
             if (!string.IsNullOrWhiteSpace(lastName)) LastName = lastName;
             FullName = $"{FirstName} {LastName}";
-            DateOfBirth = dateOfBirth;
-            MaritalStatus = maritalStatus;
-            NumberOfDependents = numberOfDependents;
             if (!string.IsNullOrWhiteSpace(idNumber)) IdNumber = idNumber;
             IdType = idType;
-            IdExpiryDate = idExpiryDate;
         }
 
-        public void UpdateContactInfo(string email, string phone, string alternativePhone = null)
+        public void UpdateContactInfo(string email, string phone)
         {
             if (!string.IsNullOrWhiteSpace(email)) EmailAddress = email;
             if (!string.IsNullOrWhiteSpace(phone)) PhoneNumber = phone;
-            AlternativePhoneNumber = alternativePhone;
         }
 
-        public void UpdateAddress(
-            string streetAddress,
-            string city,
-            string province,
-            string postalCode,
-            string country)
+        public void UpdateAddress(string address)
         {
-            StreetAddress = streetAddress;
-            City = city;
-            Province = province;
-            PostalCode = postalCode;
-            Country = country;
+            Address = address;
         }
 
-        public void UpdateEmploymentInfo(
-            EmploymentStatus employmentStatus,
-            string employer,
-            string jobTitle,
-            decimal monthlyIncome,
-            DateTime employmentStartDate)
+        public void UpdateMonthlyIncome(decimal monthlyIncome)
         {
             if (monthlyIncome < 0)
                 throw new ArgumentOutOfRangeException(nameof(monthlyIncome), "Monthly income cannot be negative.");
-            EmploymentStatus = employmentStatus;
-            Employer = employer;
-            JobTitle = jobTitle;
             MonthlyIncome = monthlyIncome;
-            EmploymentStartDate = employmentStartDate;
         }
 
-        public void UpdateEmergencyContact(string name, string phone, string relationship)
-        {
-            EmergencyContactName = name;
-            EmergencyContactPhone = phone;
-            EmergencyContactRelationship = relationship;
-        }
-
-        public void UpdateNotes(string notes) => Notes = notes;
+        public void UpdateNotes(string? notes) => Notes = notes;
 
         public void Suspend(string reason)
         {
             if (Status == BorrowerStatus.Suspended)
                 throw new InvalidOperationException("Borrower is already suspended.");
             Status = BorrowerStatus.Suspended;
-            SuspensionReason = reason;
             Notes = reason;
         }
 
@@ -236,32 +150,7 @@ namespace Money.Management.Entities
             if (Status == BorrowerStatus.Blacklisted)
                 throw new InvalidOperationException("Borrower is already blacklisted.");
             Status = BorrowerStatus.Blacklisted;
-            BlacklistReason = reason;
             Notes = reason;
-        }
-
-        public void SetAvatar(string avatarUrl) => AvatarUrl = avatarUrl;
-
-        public void UpdateCreditScore(int creditScore)
-        {
-            if (creditScore < 0 || creditScore > 1000)
-                throw new ArgumentOutOfRangeException(nameof(creditScore), "Credit score must be between 0 and 1000.");
-            CreditScore = creditScore;
-            CreditRating = creditScore switch
-            {
-                >= 750 => CreditRating.Excellent,
-                >= 650 => CreditRating.Good,
-                >= 550 => CreditRating.Fair,
-                >= 450 => CreditRating.Poor,
-                > 0   => CreditRating.VeryPoor,
-                _     => CreditRating.Unrated
-            };
-        }
-
-        public void UpdateKycStatus(bool isVerified)
-        {
-            IsKycVerified = isVerified;
-            KycVerificationDate = DateTime.UtcNow;
         }
 
         public void UpdateFinancialSummary(
@@ -278,7 +167,6 @@ namespace Money.Management.Entities
             DefaultAmount = defaultAmount;
             TotalMoneys = totalMoneys;
             DefaultedMoneys = defaultedMoneys;
-            LastActivityDate = DateTime.UtcNow;
 
             if (Outstanding == 0 && TotalBorrowed > 0)
                 Status = BorrowerStatus.PaidOff;

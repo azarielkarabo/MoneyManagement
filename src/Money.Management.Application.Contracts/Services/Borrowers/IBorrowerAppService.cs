@@ -23,18 +23,13 @@ namespace Money.Management.Services.Borrowers
 
         Task<BorrowerDto> GetWithDetailsAsync(Guid id);
 
-        Task<PagedResultDto<CreditDto>> GetBorrowerMoneysAsync(Guid borrowerId, GetCreditsInput input);
+        Task<PagedResultDto<CreditDto>> GetBorrowerMoneysAsync(Guid borrowerId, GetBorrowerCreditsInput input);
 
-        Task<PagedResultDto<PaymentDto>> GetBorrowerPaymentsAsync(Guid borrowerId, GetPaymentsInput input);
+        Task<PagedResultDto<PaymentDto>> GetBorrowerPaymentsAsync(Guid borrowerId, GetBorrowerPaymentsInput input);
 
         Task RecalculateFinancialsAsync(Guid id);
 
         Task<bool> CheckIdNumberAvailabilityAsync(string idNumber);
-
-        // ── Profile management ────────────────────────────────────────────────────
-        Task<BorrowerDto> SetAvatarAsync(Guid id, string avatarUrl);
-
-        Task<BorrowerDto> UpdateCreditScoreAsync(Guid id, int creditScore);
 
         // ── Document management ───────────────────────────────────────────────────
         Task<BorrowerDocumentDto> UploadDocumentAsync(Guid borrowerId, UploadBorrowerDocumentDto input);

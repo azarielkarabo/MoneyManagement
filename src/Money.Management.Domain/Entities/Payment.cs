@@ -17,7 +17,7 @@ namespace Money.Management.Entities
         public decimal PreviousOutstanding { get; set; }
         public decimal NewOutstanding { get; set; }
 
-        public string Description { get; set; }
+        public string? Description { get; set; }
         public PaymentMethod Method { get; set; }
 
         // Navigation properties
@@ -39,7 +39,7 @@ namespace Money.Management.Entities
             DateTime paymentDate,
             decimal previousOutstanding,
             PaymentMethod method,
-            string description = null
+            string? description = null
         ) : base(id)
         {
             LenderId = lenderId;

@@ -32,8 +32,8 @@ namespace Money.Management.Entities
         public CreditStatus Status { get; set; }
 
         // Optional Fields
-        public string Purpose { get; set; }
-        public string Notes { get; set; }
+        public string? Purpose { get; set; }
+        public string? Notes { get; set; }
         public DateTime? LastPaymentDate { get; set; }
 
         protected Credit()
@@ -48,7 +48,7 @@ namespace Money.Management.Entities
             decimal interestRate,
             int termMonths,
             DateTime dueDate,
-            string purpose = null
+            string? purpose = null
         ) : base(id)
         {
             BorrowerId = borrowerId;

@@ -29,23 +29,10 @@ namespace Money.Management.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("AlternativePhoneNumber")
+                    b.Property<string>("Address")
                         .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<string>("AvatarUrl")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
-
-                    b.Property<string>("BlacklistReason")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<string>("City")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()
@@ -54,11 +41,6 @@ namespace Money.Management.Migrations
                         .HasColumnType("nvarchar(40)")
                         .HasColumnName("ConcurrencyStamp");
 
-                    b.Property<string>("Country")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
                     b.Property<DateTime>("CreationTime")
                         .HasColumnType("datetime2")
                         .HasColumnName("CreationTime");
@@ -66,15 +48,6 @@ namespace Money.Management.Migrations
                     b.Property<Guid?>("CreatorId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("CreatorId");
-
-                    b.Property<int>("CreditRating")
-                        .HasColumnType("int");
-
-                    b.Property<int>("CreditScore")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("DateOfBirth")
-                        .HasColumnType("datetime2");
 
                     b.Property<decimal>("DefaultAmount")
                         .HasColumnType("decimal(18,2)");
@@ -95,32 +68,6 @@ namespace Money.Management.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
 
-                    b.Property<string>("EmergencyContactName")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("EmergencyContactPhone")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<string>("EmergencyContactRelationship")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("Employer")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<DateTime>("EmploymentStartDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("EmploymentStatus")
-                        .HasColumnType("int");
-
                     b.Property<string>("ExtraProperties")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)")
@@ -136,9 +83,6 @@ namespace Money.Management.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
-                    b.Property<DateTime>("IdExpiryDate")
-                        .HasColumnType("datetime2");
-
                     b.Property<string>("IdNumber")
                         .IsRequired()
                         .HasMaxLength(13)
@@ -152,20 +96,6 @@ namespace Money.Management.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(false)
                         .HasColumnName("IsDeleted");
-
-                    b.Property<bool>("IsKycVerified")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("JobTitle")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<DateTime?>("KycVerificationDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("LastActivityDate")
-                        .HasColumnType("datetime2");
 
                     b.Property<DateTime?>("LastModificationTime")
                         .HasColumnType("datetime2")
@@ -183,19 +113,12 @@ namespace Money.Management.Migrations
                     b.Property<Guid>("LenderId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<int>("MaritalStatus")
-                        .HasColumnType("int");
-
                     b.Property<decimal>("MonthlyIncome")
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("Notes")
-                        .IsRequired()
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
-
-                    b.Property<int?>("NumberOfDependents")
-                        .HasColumnType("int");
 
                     b.Property<decimal>("Outstanding")
                         .HasColumnType("decimal(18,2)");
@@ -208,27 +131,8 @@ namespace Money.Management.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
-                    b.Property<string>("PostalCode")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<string>("Province")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
                     b.Property<int>("Status")
                         .HasColumnType("int");
-
-                    b.Property<string>("StreetAddress")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<string>("SuspensionReason")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
 
                     b.Property<decimal>("TotalBorrowed")
                         .HasColumnType("decimal(18,2)");
@@ -242,8 +146,6 @@ namespace Money.Management.Migrations
 
                     b.HasIndex("IdNumber")
                         .IsUnique();
-
-                    b.HasIndex("IsKycVerified");
 
                     b.HasIndex("LenderId");
 
@@ -632,7 +534,6 @@ namespace Money.Management.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Notes")
-                        .IsRequired()
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
 
@@ -643,7 +544,6 @@ namespace Money.Management.Migrations
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("Purpose")
-                        .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
@@ -974,7 +874,6 @@ namespace Money.Management.Migrations
                         .HasColumnName("DeletionTime");
 
                     b.Property<string>("Description")
-                        .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 

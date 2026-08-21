@@ -52,12 +52,14 @@ namespace Money.Management.Services
             return lender.Id;
         }
 
+        [Authorize(MoneyManagementPermissions.Payments.Default)]
         public async Task<PaymentDto> GetAsync(Guid id)
         {
             var payment = await _paymentRepository.GetAsync(id);
             return ObjectMapper.Map<Payment, PaymentDto>(payment);
         }
 
+        [Authorize(MoneyManagementPermissions.Payments.Default)]
         public async Task<PagedResultDto<PaymentDto>> GetListAsync(GetPaymentsInput input)
         {
             var lenderId = await GetCurrentLenderIdAsync();
@@ -115,6 +117,7 @@ namespace Money.Management.Services
             return new PagedResultDto<PaymentDto>(totalCount, dtos);
         }
 
+        [Authorize(MoneyManagementPermissions.Payments.Create)]
         public async Task<PaymentDto> CreateAsync(CreatePaymentDto input)
         {
             var lenderId = await GetCurrentLenderIdAsync();
@@ -176,6 +179,7 @@ namespace Money.Management.Services
             return await GetAsync(payment.Id);
         }
 
+        [Authorize(MoneyManagementPermissions.Payments.Delete)]
         public async Task DeleteAsync(Guid id)
         {
             var lenderId = await GetCurrentLenderIdAsync();
@@ -212,6 +216,7 @@ namespace Money.Management.Services
             await _borrowerManager.UpdateFinancialSummaryAsync(credit.BorrowerId);
         }
 
+        [Authorize(MoneyManagementPermissions.Payments.Default)]
         public async Task<List<PaymentsByBorrowerDto>> GetPaymentsByBorrowerAsync(
             GetPaymentsInput input)
         {
@@ -258,6 +263,7 @@ namespace Money.Management.Services
             return groupedPayments;
         }
 
+        [Authorize(MoneyManagementPermissions.Payments.Approve)]
         public async Task<PaymentDto> ApprovePaymentAsync(Guid id)
         {
             var lenderId = await GetCurrentLenderIdAsync();
@@ -274,6 +280,7 @@ namespace Money.Management.Services
             return ObjectMapper.Map<Payment, PaymentDto>(payment);
         }
 
+        [Authorize(MoneyManagementPermissions.Payments.Default)]
         public async Task<decimal> GetTotalPaymentsAsync(
             Guid? borrowerId = null,
             Guid? creditId = null)
@@ -303,6 +310,7 @@ namespace Money.Management.Services
             return payments.Sum(p => p.Amount);
         }
 
+        [Authorize(MoneyManagementPermissions.Payments.Default)]
         public async Task<List<PaymentDto>> GetRecentPaymentsAsync(int count = 10)
         {
             var lenderId = await GetCurrentLenderIdAsync();

@@ -40,6 +40,7 @@ namespace Money.Management.Services
             return lender.Id;
         }
 
+        [Authorize(MoneyManagementPermissions.Dashboard.ViewFinancials)]
         public async Task<DashboardDto> GetDashboardDataAsync()
         {
             var dashboard = new DashboardDto
@@ -56,6 +57,7 @@ namespace Money.Management.Services
             return dashboard;
         }
 
+        [Authorize(MoneyManagementPermissions.Dashboard.ViewFinancials)]
         public async Task<DashboardSummaryDto> GetSummaryAsync()
         {
             var lenderId = await GetCurrentLenderIdAsync();
@@ -147,6 +149,7 @@ namespace Money.Management.Services
             };
         }
 
+        [Authorize(MoneyManagementPermissions.Dashboard.ViewFinancials)]
         public async Task<MoneyStatusDistributionDto> GetMoneyDistributionAsync()
         {
             var lenderId = await GetCurrentLenderIdAsync();
@@ -186,6 +189,7 @@ namespace Money.Management.Services
             };
         }
 
+        [Authorize(MoneyManagementPermissions.Dashboard.ViewFinancials)]
         public async Task<List<TopBorrowerDto>> GetTopBorrowersAsync(int count = 10)
         {
             var lenderId = await GetCurrentLenderIdAsync();
@@ -234,6 +238,7 @@ namespace Money.Management.Services
             return topBorrowers;
         }
 
+        [Authorize(MoneyManagementPermissions.Dashboard.ViewFinancials)]
         public async Task<MoneyFlowDto> GetMoneyFlowAsync(int months = 12)
         {
             var lenderId = await GetCurrentLenderIdAsync();
@@ -289,6 +294,7 @@ namespace Money.Management.Services
             };
         }
 
+        [Authorize(MoneyManagementPermissions.Dashboard.ViewFinancials)]
         public async Task<List<RecentTransactionDto>> GetRecentTransactionsAsync(int count = 10)
         {
             var lenderId = await GetCurrentLenderIdAsync();
@@ -340,6 +346,7 @@ namespace Money.Management.Services
                 .ToList();
         }
 
+        [Authorize(MoneyManagementPermissions.Dashboard.ViewFinancials)]
         public async Task<CollectionMetricsDto> GetCollectionMetricsAsync()
         {
             var lenderId = await GetCurrentLenderIdAsync();
@@ -418,6 +425,7 @@ namespace Money.Management.Services
             };
         }
 
+        [Authorize(MoneyManagementPermissions.Dashboard.ViewFinancials)]
         public async Task<List<UpcomingPaymentDto>> GetUpcomingPaymentsAsync(int days = 30)
         {
             var lenderId = await GetCurrentLenderIdAsync();
@@ -463,6 +471,7 @@ namespace Money.Management.Services
             return upcomingPayments;
         }
 
+        [Authorize(MoneyManagementPermissions.Dashboard.ViewFinancials)]
         public async Task<BorrowerAnalyticsDto> GetBorrowerAnalyticsAsync()
         {
             var lenderId = await GetCurrentLenderIdAsync();
@@ -520,6 +529,7 @@ namespace Money.Management.Services
             };
         }
 
+        [Authorize(MoneyManagementPermissions.Dashboard.ViewFinancials)]
         public async Task<PortfolioHealthDto> GetPortfolioHealthAsync()
         {
             var lenderId = await GetCurrentLenderIdAsync();
@@ -590,6 +600,7 @@ namespace Money.Management.Services
             };
         }
 
+        [Authorize(MoneyManagementPermissions.Dashboard.ViewFinancials)]
         public async Task<MoneyAgingDto> GetMoneyAgingAsync()
         {
             var lenderId = await GetCurrentLenderIdAsync();
@@ -625,6 +636,7 @@ namespace Money.Management.Services
             };
         }
 
+        [Authorize(MoneyManagementPermissions.Dashboard.ViewFinancials)]
         public async Task<Dictionary<string, decimal>> GetKpisAsync()
         {
             var summary = await GetSummaryAsync();
@@ -644,6 +656,7 @@ namespace Money.Management.Services
             };
         }
 
+        [Authorize(MoneyManagementPermissions.Dashboard.ViewFinancials)]
         public async Task<byte[]> ExportDashboardDataAsync()
         {
             var dashboard = await GetDashboardDataAsync();

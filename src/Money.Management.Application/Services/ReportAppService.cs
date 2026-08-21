@@ -1,7 +1,9 @@
 using Money.Management.Entities;
 using Money.Management.Enums;
+using Money.Management.Permissions;
 using Money.Management.Services.Reports;
 using Money.Management.Services.Reports.Dtos;
+using Microsoft.AspNetCore.Authorization;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -33,6 +35,7 @@ namespace Money.Management.Services
 
         // ── Loan report ────────────────────────────────────────────────────────────
 
+        [Authorize(MoneyManagementPermissions.Reports.Generate)]
         public async Task<LoanReportDto> GetLoanReportAsync(DateTime fromDate, DateTime toDate)
         {
             var loans = await _loanRepository.GetListAsync(
@@ -79,6 +82,7 @@ namespace Money.Management.Services
 
         // ── Budget report (monthly breakdown + category + savings trend) ────────────
 
+        [Authorize(MoneyManagementPermissions.Reports.Generate)]
         public async Task<BudgetReportDto> GetBudgetReportAsync(int year)
         {
             var budgets = await _budgetRepository.GetListAsync(b => b.Year == year);
@@ -164,6 +168,7 @@ namespace Money.Management.Services
 
         // ── Cross-module summary ───────────────────────────────────────────────────
 
+        [Authorize(MoneyManagementPermissions.Reports.Generate)]
         public async Task<ReportSummaryDto> GetSummaryReportAsync()
         {
             var loans = await _loanRepository.GetListAsync();
