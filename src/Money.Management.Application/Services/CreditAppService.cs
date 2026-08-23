@@ -21,17 +21,26 @@ namespace Money.Management.Services
         private readonly IRepository<Credit, Guid> _creditRepository;
         private readonly IRepository<Borrower, Guid> _borrowerRepository;
         private readonly IRepository<Payment, Guid> _paymentRepository;
+        private readonly LenderManager _lenderManager;
 
         public CreditAppService(
             IRepository<Credit, Guid> creditRepository,
             IRepository<Borrower, Guid> borrowerRepository,
             IRepository<Payment, Guid> paymentRepository,
             CreditManager MoneyManager,
-            BorrowerManager borrowerManager)
+            BorrowerManager borrowerManager,
+            LenderManager lenderManager)
         {
             _creditRepository = creditRepository;
             _borrowerRepository = borrowerRepository;
             _paymentRepository = paymentRepository;
+            _lenderManager = lenderManager;
+        }
+
+        private async Task<Guid> GetCurrentLenderIdAsync()
+        {
+            var lender = await _lenderManager.GetCurrentLenderAsync();
+            return lender.Id;
         }
 
         [Authorize(MoneyManagementPermissions.Credits.Default)]
@@ -39,6 +48,9 @@ namespace Money.Management.Services
         {
             var credit = await _creditRepository.GetAsync(id);
             var dto = ObjectMapper.Map<Credit, CreditDto>(credit);
+
+            var borrower = await _borrowerRepository.GetAsync(credit.BorrowerId);
+            dto.BorrowerName = borrower.FullName;
 
             // Calculate payment progress
             dto.PaymentProgress = dto.TotalAmount > 0
@@ -88,6 +100,10 @@ namespace Money.Management.Services
                 queryable = queryable.Where(l => l.Status == CreditStatus.Overdue);
             }
 
+            var lenderId = await GetCurrentLenderIdAsync();
+
+            queryable = queryable.Where(i => i.LenderId == lenderId);
+
             var totalCount = await AsyncExecuter.CountAsync(queryable);
 
             queryable = queryable.OrderByDescending(l => l.IssuedDate)
@@ -97,16 +113,26 @@ namespace Money.Management.Services
             var credits = await AsyncExecuter.ToListAsync(queryable);
             var dtos = ObjectMapper.Map<List<Credit>, List<CreditDto>>(credits);
 
+            var borrowerIds = credits.Select(c => c.BorrowerId).Distinct().ToList();
+            var borrowers = await _borrowerRepository.GetListAsync(b => borrowerIds.Contains(b.Id));
+            var borrowerNamesById = borrowers.ToDictionary(b => b.Id, b => b.FullName);
+
+            foreach (var dto in dtos)
+            {
+                dto.BorrowerName = borrowerNamesById.GetValueOrDefault(dto.BorrowerId);
+            }
+
             return new PagedResultDto<CreditDto>(totalCount, dtos);
         }
 
         [Authorize(MoneyManagementPermissions.Credits.Create)]
         public async Task<CreditDto> CreateAsync(CreateCreditDto input)
         {
+            var lenderId = await GetCurrentLenderIdAsync();
             var credit = new Credit(
                 GuidGenerator.Create(),
                 input.BorrowerId,
-                CurrentUser.Id.Value,
+                lenderId,
                 input.PrincipalAmount,
                 input.InterestRate,
                 input.TermMonths,

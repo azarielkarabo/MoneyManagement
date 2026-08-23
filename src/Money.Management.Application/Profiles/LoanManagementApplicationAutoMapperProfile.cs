@@ -29,7 +29,7 @@ namespace Money.Management.Profiles
 
             // ============ Credit Mappings ============
             CreateMap<Credit, CreditDto>()
-                .ForMember(dest => dest.BorrowerName, opt => opt.MapFrom(src => src.Borrower.FullName))
+                .ForMember(dest => dest.BorrowerName, opt => opt.Ignore()) // Set by service (Borrower nav isn't loaded)
                 .ForMember(dest => dest.DaysOverdue, opt => opt.Ignore()) // Calculated in service
                 .ForMember(dest => dest.PaymentProgress, opt => opt.Ignore()); // Calculated in service
 
