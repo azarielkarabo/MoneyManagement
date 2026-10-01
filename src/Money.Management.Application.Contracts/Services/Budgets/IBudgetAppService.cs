@@ -16,7 +16,11 @@ namespace Money.Management.Services.Budgets
 
         // ── Items ─────────────────────────────────────────────────────────────────
         Task<BudgetItemDto> AddBudgetItemAsync(Guid budgetId, AddBudgetItemDto input);
-        Task<BudgetItemDto> RecordActualSpendingAsync(Guid budgetId, Guid itemId, decimal actualAmount);
+        Task<BudgetItemDto> AddExpenseEntryAsync(Guid budgetId, Guid itemId, AddExpenseEntryDto input);
+        Task<System.Collections.Generic.List<ExpenseEntryDto>> GetExpenseEntriesAsync(Guid itemId);
+
+        // ── Calendar ──────────────────────────────────────────────────────────────
+        Task<System.Collections.Generic.List<DailySpendingDto>> GetDailySpendingAsync(int year, int month);
 
         // ── Reports ───────────────────────────────────────────────────────────────
         Task<CashFlowReportDto> GetCashFlowReportAsync(Guid budgetId);

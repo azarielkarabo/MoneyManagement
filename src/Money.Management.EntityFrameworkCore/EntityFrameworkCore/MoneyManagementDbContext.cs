@@ -64,6 +64,11 @@ public class MoneyManagementDbContext :
     public DbSet<Budget> Budgets { get; set; }
     public DbSet<BudgetItem> BudgetItems { get; set; }
 
+    // Financial Accounts
+    public DbSet<FinancialAccount> FinancialAccounts { get; set; }
+    public DbSet<AccountTransfer> AccountTransfers { get; set; }
+    public DbSet<ExpenseEntry> ExpenseEntries { get; set; }
+
     public MoneyManagementDbContext(DbContextOptions<MoneyManagementDbContext> options)
         : base(options)
     {
@@ -467,6 +472,71 @@ public class MoneyManagementDbContext :
 
             b.HasIndex(x => x.BudgetId);
             b.HasIndex(x => x.Type);
+        });
+
+        // ============ FinancialAccount Configuration ============
+        builder.Entity<FinancialAccount>(b =>
+        {
+            b.ToTable("FinancialAccounts");
+            b.ConfigureByConvention();
+
+            b.Property(x => x.Name)
+                .IsRequired()
+                .HasMaxLength(200);
+
+            b.Property(x => x.Balance)
+                .IsRequired()
+                .HasColumnType("decimal(18,2)");
+
+            b.HasIndex(x => x.UserId);
+            b.HasIndex(x => new { x.UserId, x.AccountType });
+        });
+
+        // ============ AccountTransfer Configuration ============
+        builder.Entity<AccountTransfer>(b =>
+        {
+            b.ToTable("AccountTransfers");
+            b.ConfigureByConvention();
+
+            b.Property(x => x.Amount)
+                .IsRequired()
+                .HasColumnType("decimal(18,2)");
+
+            b.Property(x => x.Notes)
+                .HasMaxLength(500);
+
+            b.HasIndex(x => x.UserId);
+            b.HasIndex(x => x.FromAccountId);
+            b.HasIndex(x => x.ToAccountId);
+        });
+
+        // ============ ExpenseEntry Configuration ============
+        builder.Entity<ExpenseEntry>(b =>
+        {
+            b.ToTable("ExpenseEntries");
+            b.ConfigureByConvention();
+
+            b.Property(x => x.Amount)
+                .IsRequired()
+                .HasColumnType("decimal(18,2)");
+
+            b.Property(x => x.Notes)
+                .HasMaxLength(500);
+
+            b.HasOne(x => x.BudgetItem)
+                .WithMany()
+                .HasForeignKey(x => x.BudgetItemId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            b.HasOne(x => x.Account)
+                .WithMany()
+                .HasForeignKey(x => x.AccountId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            b.HasIndex(x => x.BudgetItemId);
+            b.HasIndex(x => x.AccountId);
+            b.HasIndex(x => new { x.UserId, x.EntryDate });
         });
 
         // ============ BorrowerDocument Configuration ============

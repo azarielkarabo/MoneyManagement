@@ -73,13 +73,16 @@ namespace Money.Management.DomainServices
             string address,
             decimal monthlyIncome)
         {
-            // Check for duplicate ID number
-            var existingBorrower = await _borrowerRepository
-                .FirstOrDefaultAsync(b => b.IdNumber == idNumber);
-
-            if (existingBorrower != null)
+            // Check for duplicate ID number (only when one was provided)
+            if (!string.IsNullOrWhiteSpace(idNumber))
             {
-                throw new BorrowerAlreadyExistsException(idNumber);
+                var existingBorrower = await _borrowerRepository
+                    .FirstOrDefaultAsync(b => b.IdNumber == idNumber);
+
+                if (existingBorrower != null)
+                {
+                    throw new BorrowerAlreadyExistsException(idNumber);
+                }
             }
 
             var borrower = new Borrower(

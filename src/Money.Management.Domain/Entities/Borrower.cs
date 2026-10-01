@@ -84,8 +84,6 @@ namespace Money.Management.Entities
                 throw new ArgumentException("First name cannot be empty.", nameof(firstName));
             if (string.IsNullOrWhiteSpace(lastName))
                 throw new ArgumentException("Last name cannot be empty.", nameof(lastName));
-            if (string.IsNullOrWhiteSpace(idNumber))
-                throw new ArgumentException("ID number cannot be empty.", nameof(idNumber));
             if (monthlyIncome < 0)
                 throw new ArgumentOutOfRangeException(nameof(monthlyIncome), "Monthly income cannot be negative.");
 
@@ -93,7 +91,7 @@ namespace Money.Management.Entities
             FirstName = firstName;
             LastName = lastName;
             FullName = $"{firstName} {lastName}";
-            IdNumber = idNumber;
+            IdNumber = idNumber ?? string.Empty;
             IdType = idType;
             EmailAddress = email;
             PhoneNumber = phoneNumber;

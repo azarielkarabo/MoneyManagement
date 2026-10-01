@@ -17,13 +17,19 @@ namespace Money.Management.Services
     {
         private readonly IRepository<Budget, Guid> _budgetRepository;
         private readonly IRepository<BudgetItem, Guid> _budgetItemRepository;
+        private readonly IRepository<ExpenseEntry, Guid> _expenseEntryRepository;
+        private readonly IRepository<FinancialAccount, Guid> _accountRepository;
 
         public BudgetAppService(
             IRepository<Budget, Guid> budgetRepository,
-            IRepository<BudgetItem, Guid> budgetItemRepository)
+            IRepository<BudgetItem, Guid> budgetItemRepository,
+            IRepository<ExpenseEntry, Guid> expenseEntryRepository,
+            IRepository<FinancialAccount, Guid> accountRepository)
         {
             _budgetRepository = budgetRepository;
             _budgetItemRepository = budgetItemRepository;
+            _expenseEntryRepository = expenseEntryRepository;
+            _accountRepository = accountRepository;
         }
 
         // ── CRUD ──────────────────────────────────────────────────────────────────
@@ -120,18 +126,81 @@ namespace Money.Management.Services
         }
 
         [Authorize(MoneyManagementPermissions.Budgets.ManageItems)]
-        public async Task<BudgetItemDto> RecordActualSpendingAsync(
-            Guid budgetId, Guid itemId, decimal actualAmount)
+        public async Task<BudgetItemDto> AddExpenseEntryAsync(
+            Guid budgetId, Guid itemId, AddExpenseEntryDto input)
         {
             var budget = await LoadBudgetWithItemsAsync(budgetId);
 
-            budget.RecordActualSpending(itemId, actualAmount);
-
+            budget.AddExpenseEntry(itemId, input.Amount);
             await _budgetRepository.UpdateAsync(budget);
+
+            if (input.AccountId.HasValue)
+            {
+                var account = await _accountRepository.GetAsync(input.AccountId.Value);
+
+                if (account.UserId != CurrentUser.Id.Value)
+                    throw new UnauthorizedAccessException("You do not have permission to use this account.");
+
+                account.Withdraw(input.Amount);
+                await _accountRepository.UpdateAsync(account);
+            }
+
+            var entry = new ExpenseEntry(
+                GuidGenerator.Create(),
+                itemId,
+                CurrentUser.Id.Value,
+                input.Amount,
+                input.EntryDate,
+                input.AccountId,
+                input.Notes);
+
+            await _expenseEntryRepository.InsertAsync(entry);
             await CurrentUnitOfWork.SaveChangesAsync();
 
             var item = await _budgetItemRepository.GetAsync(itemId);
             return ObjectMapper.Map<BudgetItem, BudgetItemDto>(item);
+        }
+
+        [Authorize(MoneyManagementPermissions.Budgets.Default)]
+        public async Task<List<ExpenseEntryDto>> GetExpenseEntriesAsync(Guid itemId)
+        {
+            var item = await _budgetItemRepository.GetAsync(itemId);
+            var entries = await _expenseEntryRepository.GetListAsync(e => e.BudgetItemId == itemId);
+
+            var dtos = new List<ExpenseEntryDto>(entries.Count);
+            foreach (var entry in entries.OrderByDescending(e => e.EntryDate))
+            {
+                var dto = ObjectMapper.Map<ExpenseEntry, ExpenseEntryDto>(entry);
+                dto.BudgetItemName = item.Name;
+
+                if (entry.AccountId.HasValue)
+                {
+                    var account = await _accountRepository.FindAsync(entry.AccountId.Value);
+                    dto.AccountName = account?.Name;
+                }
+
+                dtos.Add(dto);
+            }
+
+            return dtos;
+        }
+
+        [Authorize(MoneyManagementPermissions.Budgets.Default)]
+        public async Task<List<DailySpendingDto>> GetDailySpendingAsync(int year, int month)
+        {
+            var queryable = await _expenseEntryRepository.GetQueryableAsync();
+
+            var entries = await AsyncExecuter.ToListAsync(
+                queryable.Where(e =>
+                    e.UserId == CurrentUser.Id.Value &&
+                    e.EntryDate.Year == year &&
+                    e.EntryDate.Month == month));
+
+            return entries
+                .GroupBy(e => e.EntryDate.Date)
+                .Select(g => new DailySpendingDto { Date = g.Key, TotalAmount = g.Sum(e => e.Amount) })
+                .OrderBy(d => d.Date)
+                .ToList();
         }
 
         // ── Reports ───────────────────────────────────────────────────────────────

@@ -8,6 +8,7 @@ using Money.Management.Services.Payments.Dtos;
 using Money.Management.Services.Lenders.Dtos;
 using Money.Management.Services.LenderApplications.Dtos;
 using Money.Management.Services.BorrowerApplications.Dtos;
+using Money.Management.Services.Accounts.Dtos;
 using System.Collections.Generic;
 
 namespace Money.Management.Profiles
@@ -93,6 +94,17 @@ namespace Money.Management.Profiles
             CreateMap<BudgetItem, BudgetItemDto>()
                 .ForMember(dest => dest.Variance, opt => opt.MapFrom(src => src.Variance))
                 .ForMember(dest => dest.IsOverBudget, opt => opt.MapFrom(src => src.IsOverBudget));
+
+            CreateMap<ExpenseEntry, ExpenseEntryDto>()
+                .ForMember(dest => dest.BudgetItemName, opt => opt.Ignore())
+                .ForMember(dest => dest.AccountName, opt => opt.Ignore());
+
+            // ============ Account Mappings ============
+            CreateMap<FinancialAccount, FinancialAccountDto>();
+
+            CreateMap<AccountTransfer, AccountTransferDto>()
+                .ForMember(dest => dest.FromAccountName, opt => opt.Ignore())
+                .ForMember(dest => dest.ToAccountName, opt => opt.Ignore());
         }
     }
 }

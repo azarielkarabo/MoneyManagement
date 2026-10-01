@@ -13,9 +13,7 @@ namespace Money.Management.Services.Borrowers.Dtos
         [StringLength(100, ErrorMessage = "Last name cannot exceed 100 characters")]
         public string LastName { get; set; }
 
-        [Required]
-        [StringLength(13, MinimumLength = 13, ErrorMessage = "ID Number must be 13 digits")]
-        [RegularExpression(@"^\d{13}$", ErrorMessage = "ID Number must be 13 digits")]
+        [StringLength(13, ErrorMessage = "ID Number cannot exceed 13 characters")]
         public string IdNumber { get; set; }
 
         [Required]

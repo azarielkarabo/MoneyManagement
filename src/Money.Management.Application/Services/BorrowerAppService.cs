@@ -124,13 +124,16 @@ namespace Money.Management.Services
         {
             var lenderId = await GetCurrentLenderIdAsync();
 
-            // Check for duplicate ID number within this lender
-            var existingBorrower = await _borrowerRepository
-                .FirstOrDefaultAsync(b => b.LenderId == lenderId && b.IdNumber == input.IdNumber);
-
-            if (existingBorrower != null)
+            // Check for duplicate ID number within this lender (only when one was provided)
+            if (!string.IsNullOrWhiteSpace(input.IdNumber))
             {
-                throw new BorrowerAlreadyExistsException(input.IdNumber);
+                var existingBorrower = await _borrowerRepository
+                    .FirstOrDefaultAsync(b => b.LenderId == lenderId && b.IdNumber == input.IdNumber);
+
+                if (existingBorrower != null)
+                {
+                    throw new BorrowerAlreadyExistsException(input.IdNumber);
+                }
             }
 
             // Create borrower using domain service
@@ -170,8 +173,8 @@ namespace Money.Management.Services
                 throw new UnauthorizedAccessException("You do not have permission to update this borrower.");
             }
 
-            // Check if ID number changed and is unique within this lender
-            if (borrower.IdNumber != input.IdNumber)
+            // Check if ID number changed and is unique within this lender (only when one was provided)
+            if (!string.IsNullOrWhiteSpace(input.IdNumber) && borrower.IdNumber != input.IdNumber)
             {
                 var existingWithIdNumber = await _borrowerRepository
                     .FirstOrDefaultAsync(b => b.LenderId == lenderId && b.IdNumber == input.IdNumber);

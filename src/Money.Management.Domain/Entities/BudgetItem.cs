@@ -20,8 +20,9 @@ namespace Money.Management.Entities
         public decimal Amount { get; private set; }
 
         /// <summary>
-        /// Actual amount spent. Null means not yet recorded.
-        /// Set via <see cref="Budget.RecordActualSpending"/>.
+        /// Running total actually spent against this item, accumulated one
+        /// <see cref="ExpenseEntry"/> at a time via <see cref="Budget.AddExpenseEntry"/>.
+        /// Null means nothing has been spent yet.
         /// </summary>
         public decimal? ActualAmount { get; private set; }
 
@@ -62,14 +63,14 @@ namespace Money.Management.Entities
             Type = type;
         }
 
-        /// <summary>Records or updates the actual amount for this item.</summary>
-        internal void RecordActual(decimal actualAmount)
+        /// <summary>Adds to the running actual-spend total for this item.</summary>
+        internal void AddActualSpending(decimal amount)
         {
-            if (actualAmount < 0)
+            if (amount <= 0)
                 throw new ArgumentOutOfRangeException(
-                    nameof(actualAmount), "Actual amount cannot be negative.");
+                    nameof(amount), "Amount must be greater than 0.");
 
-            ActualAmount = actualAmount;
+            ActualAmount = (ActualAmount ?? 0m) + amount;
         }
 
         /// <summary>

@@ -74,6 +74,13 @@ public class MoneyManagementLenderRoleDataSeedContributor : IDataSeedContributor
         $"{GroupName}.Budgets.Edit",
         $"{GroupName}.Budgets.Delete",
         $"{GroupName}.Budgets.ManageItems",
+
+        // Accounts
+        $"{GroupName}.Accounts",
+        $"{GroupName}.Accounts.Create",
+        $"{GroupName}.Accounts.Edit",
+        $"{GroupName}.Accounts.Delete",
+        $"{GroupName}.Accounts.Transfer",
     };
 
     private readonly IIdentityRoleRepository _roleRepository;

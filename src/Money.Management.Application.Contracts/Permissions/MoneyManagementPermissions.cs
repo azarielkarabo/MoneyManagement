@@ -76,4 +76,13 @@ public static class MoneyManagementPermissions
         public const string Approve = Default + ".Approve";
         public const string Reject = Default + ".Reject";
     }
+
+    public static class Accounts
+    {
+        public const string Default = GroupName + ".Accounts";
+        public const string Create = Default + ".Create";
+        public const string Edit = Default + ".Edit";
+        public const string Delete = Default + ".Delete";
+        public const string Transfer = Default + ".Transfer";
+    }
 }

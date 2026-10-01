@@ -79,17 +79,17 @@ namespace Money.Management.Entities
         }
 
         /// <summary>
-        /// Records actual spending for an existing budget item.
+        /// Adds a dated spend to an existing budget item's running actual total.
         /// Actual amounts ARE allowed to exceed the planned amount —
         /// use <see cref="IsOverspending"/> to detect this.
         /// </summary>
-        public void RecordActualSpending(Guid itemId, decimal actualAmount)
+        public void AddExpenseEntry(Guid itemId, decimal amount)
         {
             var item = _items.FirstOrDefault(i => i.Id == itemId)
                 ?? throw new InvalidOperationException(
                     $"Budget item {itemId} not found in budget {Id}.");
 
-            item.RecordActual(actualAmount);
+            item.AddActualSpending(amount);
         }
 
         // ── Planned calculations ──────────────────────────────────────────────────
