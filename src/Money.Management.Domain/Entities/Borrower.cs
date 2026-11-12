@@ -24,12 +24,12 @@ namespace Money.Management.Entities
         public string FullName { get; private set; }
 
         // ── Identification ────────────────────────────────────────────────────────
-        public string IdNumber { get; private set; }
+        public string? IdNumber { get; private set; }
         public IdentificationType IdType { get; private set; }
 
         // ── Contact Information ───────────────────────────────────────────────────
-        public string EmailAddress { get; private set; }
-        public string PhoneNumber { get; private set; }
+        public string? EmailAddress { get; private set; }
+        public string? PhoneNumber { get; private set; }
         public string Address { get; private set; }
 
         // ── Income ────────────────────────────────────────────────────────────────
@@ -70,10 +70,10 @@ namespace Money.Management.Entities
             Guid lenderId,
             string firstName,
             string lastName,
-            string idNumber,
+            string? idNumber,
             IdentificationType idType,
-            string email,
-            string phoneNumber,
+            string? email,
+            string? phoneNumber,
             string address,
             decimal monthlyIncome
         ) : base(id)
@@ -91,10 +91,11 @@ namespace Money.Management.Entities
             FirstName = firstName;
             LastName = lastName;
             FullName = $"{firstName} {lastName}";
-            IdNumber = idNumber ?? string.Empty;
+            // Store NULL (not "") when no ID is given so the unique index ignores it.
+            IdNumber = string.IsNullOrWhiteSpace(idNumber) ? null : idNumber.Trim();
             IdType = idType;
-            EmailAddress = email;
-            PhoneNumber = phoneNumber;
+            EmailAddress = string.IsNullOrWhiteSpace(email) ? null : email.Trim();
+            PhoneNumber = string.IsNullOrWhiteSpace(phoneNumber) ? null : phoneNumber.Trim();
             Address = address;
             MonthlyIncome = monthlyIncome;
 
@@ -118,11 +119,11 @@ namespace Money.Management.Entities
             if (!string.IsNullOrWhiteSpace(firstName)) FirstName = firstName;
             if (!string.IsNullOrWhiteSpace(lastName)) LastName = lastName;
             FullName = $"{FirstName} {LastName}";
-            if (!string.IsNullOrWhiteSpace(idNumber)) IdNumber = idNumber;
+            if (!string.IsNullOrWhiteSpace(idNumber)) IdNumber = idNumber.Trim();
             IdType = idType;
         }
 
-        public void UpdateContactInfo(string email, string phone)
+        public void UpdateContactInfo(string? email, string? phone)
         {
             if (!string.IsNullOrWhiteSpace(email)) EmailAddress = email;
             if (!string.IsNullOrWhiteSpace(phone)) PhoneNumber = phone;

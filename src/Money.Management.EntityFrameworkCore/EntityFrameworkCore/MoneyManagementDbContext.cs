@@ -159,16 +159,16 @@ public class MoneyManagementDbContext :
 
             // Identification
             b.Property(x => x.IdNumber)
-                .IsRequired()
+                .IsRequired(false)
                 .HasMaxLength(13);
 
             // Contact Information
             b.Property(x => x.EmailAddress)
-                .IsRequired()
+                .IsRequired(false)
                 .HasMaxLength(256);
 
             b.Property(x => x.PhoneNumber)
-                .IsRequired()
+                .IsRequired(false)
                 .HasMaxLength(20);
 
             b.Property(x => x.Address)
@@ -213,7 +213,7 @@ public class MoneyManagementDbContext :
 
             // Indexes
             b.HasIndex(x => x.LenderId);
-            b.HasIndex(x => x.IdNumber).IsUnique();
+            b.HasIndex(x => x.IdNumber).IsUnique().HasFilter("[IdNumber] IS NOT NULL");
             b.HasIndex(x => x.Status);
             b.HasIndex(x => x.EmailAddress);
             b.HasIndex(x => x.PhoneNumber);

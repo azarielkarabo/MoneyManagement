@@ -66,10 +66,10 @@ namespace Money.Management.DomainServices
             Guid lenderId,
             string firstName,
             string lastName,
-            string idNumber,
+            string? idNumber,
             IdentificationType idType,
-            string email,
-            string phoneNumber,
+            string? email,
+            string? phoneNumber,
             string address,
             decimal monthlyIncome)
         {

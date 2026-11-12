@@ -141,7 +141,6 @@ namespace Money.Management.Migrations
                         .HasColumnName("DeletionTime");
 
                     b.Property<string>("EmailAddress")
-                        .IsRequired()
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
 
@@ -161,7 +160,6 @@ namespace Money.Management.Migrations
                         .HasColumnType("nvarchar(200)");
 
                     b.Property<string>("IdNumber")
-                        .IsRequired()
                         .HasMaxLength(13)
                         .HasColumnType("nvarchar(13)");
 
@@ -204,7 +202,6 @@ namespace Money.Management.Migrations
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("PhoneNumber")
-                        .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
@@ -225,7 +222,8 @@ namespace Money.Management.Migrations
                     b.HasIndex("EmailAddress");
 
                     b.HasIndex("IdNumber")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("[IdNumber] IS NOT NULL");
 
                     b.HasIndex("LenderId");
 

@@ -19,14 +19,12 @@ namespace Money.Management.Services.Borrowers.Dtos
         [Required]
         public IdentificationType IdType { get; set; }
 
-        [Required]
         [EmailAddress(ErrorMessage = "Invalid email address")]
-        public string EmailAddress { get; set; }
+        public string? EmailAddress { get; set; }
 
-        [Required]
         [StringLength(20, ErrorMessage = "Phone number cannot exceed 20 characters")]
         [RegularExpression(@"^\d{10,}$", ErrorMessage = "Phone number must contain at least 10 digits")]
-        public string PhoneNumber { get; set; }
+        public string? PhoneNumber { get; set; }
 
         [Required]
         [StringLength(500, ErrorMessage = "Address cannot exceed 500 characters")]
