@@ -731,6 +731,9 @@ namespace Money.Management.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
 
+                    b.Property<int>("RepaymentType")
+                        .HasColumnType("int");
+
                     b.Property<decimal>("OutstandingAmount")
                         .HasColumnType("decimal(18,2)");
 

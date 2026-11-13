@@ -22,11 +22,13 @@ namespace Money.Management.Services.credits.Dtos
         public DateTime DueDate { get; set; }
 
         [StringLength(500, ErrorMessage = "Purpose cannot exceed 500 characters")]
-        public string Purpose { get; set; }
+        public string? Purpose { get; set; }
 
         [StringLength(1000, ErrorMessage = "Notes cannot exceed 1000 characters")]
-        public string Notes { get; set; }
+        public string? Notes { get; set; }
 
         public CreditStatus Status { get; set; }
+
+        public RepaymentType RepaymentType { get; set; } = RepaymentType.LongTerm;
     }
 }

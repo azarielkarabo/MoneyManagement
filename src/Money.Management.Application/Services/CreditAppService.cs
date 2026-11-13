@@ -11,6 +11,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Volo.Abp.Application.Dtos;
+using Volo.Abp;
 using Volo.Abp.Application.Services;
 using Volo.Abp.Domain.Repositories;
 
@@ -140,6 +141,7 @@ namespace Money.Management.Services
                 input.Purpose
             );
             credit.Notes = input.Description;
+            credit.RepaymentType = input.RepaymentType;
 
             await _creditRepository.InsertAsync(credit);
             await CurrentUnitOfWork.SaveChangesAsync();
@@ -161,15 +163,43 @@ namespace Money.Management.Services
                 throw new CannotUpdatePaidOffMoneyException(id);
             }
 
+            // The corrected total cannot be less than what the borrower has already paid.
+            var newTotal = input.PrincipalAmount + input.PrincipalAmount * (input.InterestRate / 100);
+            if (newTotal < credit.AmountPaid)
+            {
+                throw new UserFriendlyException(
+                    $"The new total ({newTotal:N2}) cannot be less than the amount already paid ({credit.AmountPaid:N2}).");
+            }
+
             credit.PrincipalAmount = input.PrincipalAmount;
             credit.InterestRate = input.InterestRate;
             credit.TermMonths = input.TermMonths;
             credit.DueDate = input.DueDate;
             credit.Purpose = input.Purpose;
             credit.Notes = input.Notes;
+            credit.RepaymentType = input.RepaymentType;
 
             // Recalculate amounts
             credit.CalculateMoneyAmounts();
+
+            // A lender may mark a loan as active, suspended, defaulted or cancelled.
+            // Other status values are ignored here; payments and the balance drive those.
+            var manualStatuses = new[] { CreditStatus.Active, CreditStatus.Suspended, CreditStatus.Defaulted, CreditStatus.Cancelled };
+            if (manualStatuses.Contains(input.Status))
+            {
+                credit.Status = input.Status;
+            }
+
+            // A balance of zero always closes the loan; a reopened loan becomes active again.
+            if (credit.OutstandingAmount <= 0)
+            {
+                credit.Status = CreditStatus.PaidOff;
+                credit.OutstandingAmount = 0;
+            }
+            else if (credit.Status == CreditStatus.PaidOff)
+            {
+                credit.Status = CreditStatus.Active;
+            }
 
             await _creditRepository.UpdateAsync(credit);
 

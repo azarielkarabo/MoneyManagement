@@ -1,3 +1,4 @@
+using Money.Management.DomainServices;
 using Money.Management.Entities;
 using Money.Management.Enums;
 using Money.Management.Permissions;
@@ -16,18 +17,21 @@ namespace Money.Management.Services
 {
     public class ReportAppService : ApplicationService, IReportAppService
     {
-        private readonly IRepository<Loan, Guid> _loanRepository;
-        private readonly IRepository<LoanRepayment, Guid> _repaymentRepository;
+        private readonly IRepository<Credit, Guid> _creditRepository;
+        private readonly IRepository<Payment, Guid> _repaymentRepository;
+        private readonly LenderManager _lenderManager;
         private readonly IRepository<Budget, Guid> _budgetRepository;
         private readonly IRepository<BudgetItem, Guid> _budgetItemRepository;
 
         public ReportAppService(
-            IRepository<Loan, Guid> loanRepository,
-            IRepository<LoanRepayment, Guid> repaymentRepository,
+            IRepository<Credit, Guid> creditRepository,
+            IRepository<Payment, Guid> repaymentRepository,
+            LenderManager lenderManager,
             IRepository<Budget, Guid> budgetRepository,
             IRepository<BudgetItem, Guid> budgetItemRepository)
         {
-            _loanRepository = loanRepository;
+            _creditRepository = creditRepository;
+            _lenderManager = lenderManager;
             _repaymentRepository = repaymentRepository;
             _budgetRepository = budgetRepository;
             _budgetItemRepository = budgetItemRepository;
@@ -38,16 +42,18 @@ namespace Money.Management.Services
         [Authorize(MoneyManagementPermissions.Reports.Generate)]
         public async Task<LoanReportDto> GetLoanReportAsync(DateTime fromDate, DateTime toDate)
         {
-            var loans = await _loanRepository.GetListAsync(
-                l => l.StartDate >= fromDate && l.StartDate <= toDate);
+            var lenderId = (await _lenderManager.GetCurrentLenderAsync()).Id;
+            var loans = await _creditRepository.GetListAsync(
+                l => l.LenderId == lenderId && l.IssuedDate >= fromDate && l.IssuedDate <= toDate);
 
             var loanIds = loans.Select(l => l.Id).ToHashSet();
-            var allRepayments = await _repaymentRepository.GetListAsync();
-            var repayments = allRepayments.Where(r => loanIds.Contains(r.LoanId)).ToList();
+            var allRepayments = await _repaymentRepository.GetListAsync(
+                p => p.LenderId == lenderId && p.PaymentDate >= fromDate && p.PaymentDate <= toDate);
+            var repayments = allRepayments.Where(r => loanIds.Contains(r.CreditId)).ToList();
 
             // Interest earned = sum of InterestAmount on fully completed loans only
             var interestEarned = loans
-                .Where(l => l.Status == LoanStatus.Completed)
+                .Where(l => l.Status == CreditStatus.PaidOff)
                 .Sum(l => l.InterestAmount);
 
             // Repayment trend grouped by month
@@ -58,7 +64,7 @@ namespace Money.Management.Services
                     Year = g.Key.Year,
                     Month = g.Key.Month,
                     MonthLabel = MonthLabel(g.Key.Year, g.Key.Month),
-                    Amount = g.Sum(r => r.AmountPaid),
+                    Amount = g.Sum(r => r.Amount),
                     Count = g.Count()
                 })
                 .OrderBy(t => t.Year).ThenBy(t => t.Month)
@@ -69,13 +75,13 @@ namespace Money.Management.Services
                 FromDate = fromDate,
                 ToDate = toDate,
                 TotalLoans = loans.Count,
-                ActiveLoans = loans.Count(l => l.Status == LoanStatus.Active),
-                CompletedLoans = loans.Count(l => l.Status == LoanStatus.Completed),
-                DefaultedLoans = loans.Count(l => l.Status == LoanStatus.Defaulted),
+                ActiveLoans = loans.Count(l => l.Status == CreditStatus.Active || l.Status == CreditStatus.Overdue),
+                CompletedLoans = loans.Count(l => l.Status == CreditStatus.PaidOff),
+                DefaultedLoans = loans.Count(l => l.Status == CreditStatus.Defaulted),
                 TotalDisbursed = loans.Sum(l => l.PrincipalAmount),
                 TotalInterestEarned = interestEarned,
-                TotalOutstanding = loans.Sum(l => l.OutstandingBalance),
-                TotalRepaid = repayments.Sum(r => r.AmountPaid),
+                TotalOutstanding = loans.Sum(l => l.OutstandingAmount),
+                TotalRepaid = repayments.Sum(r => r.Amount),
                 RepaymentTrend = trend
             };
         }
@@ -171,8 +177,9 @@ namespace Money.Management.Services
         [Authorize(MoneyManagementPermissions.Reports.Generate)]
         public async Task<ReportSummaryDto> GetSummaryReportAsync()
         {
-            var loans = await _loanRepository.GetListAsync();
-            var repayments = await _repaymentRepository.GetListAsync();
+            var lenderId = (await _lenderManager.GetCurrentLenderAsync()).Id;
+            var loans = await _creditRepository.GetListAsync(l => l.LenderId == lenderId);
+            var repayments = await _repaymentRepository.GetListAsync(p => p.LenderId == lenderId);
             var budgets = await _budgetRepository.GetListAsync();
             var budgetItems = await _budgetItemRepository.GetListAsync();
 
@@ -184,7 +191,7 @@ namespace Money.Management.Services
                     Year = g.Key.Year,
                     Month = g.Key.Month,
                     MonthLabel = MonthLabel(g.Key.Year, g.Key.Month),
-                    Amount = g.Sum(r => r.AmountPaid),
+                    Amount = g.Sum(r => r.Amount),
                     Count = g.Count()
                 })
                 .OrderBy(t => t.Year).ThenBy(t => t.Month)
@@ -218,10 +225,10 @@ namespace Money.Management.Services
                 TotalLoans = loans.Count,
                 TotalDisbursed = loans.Sum(l => l.PrincipalAmount),
                 TotalInterestEarned = loans
-                    .Where(l => l.Status == LoanStatus.Completed)
+                    .Where(l => l.Status == CreditStatus.PaidOff)
                     .Sum(l => l.InterestAmount),
-                TotalOutstanding = loans.Sum(l => l.OutstandingBalance),
-                TotalRepaid = repayments.Sum(r => r.AmountPaid),
+                TotalOutstanding = loans.Sum(l => l.OutstandingAmount),
+                TotalRepaid = repayments.Sum(r => r.Amount),
                 AverageMonthlySalary = budgetCount > 0 ? budgets.Average(b => b.Salary) : 0m,
                 AverageMonthlyExpenses = budgetTrend.Count > 0
                     ? budgetTrend.Average(t => t.Amount) : 0m,

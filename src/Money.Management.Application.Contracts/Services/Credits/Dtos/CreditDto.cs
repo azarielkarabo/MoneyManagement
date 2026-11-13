@@ -33,6 +33,7 @@ namespace Money.Management.Services.credits.Dtos
         public CreditStatus Status { get; set; }
         public string Purpose { get; set; }
         public string Notes { get; set; }
+        public RepaymentType RepaymentType { get; set; }
 
         // Computed Properties (calculated in AppService)
         public decimal PaymentProgress { get; set; } // Percentage

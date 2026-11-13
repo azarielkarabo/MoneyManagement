@@ -1,3 +1,4 @@
+using Money.Management.Enums;
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
 
@@ -23,11 +24,13 @@ namespace Money.Management.Services.credits.Dtos
         public DateTime DueDate { get; set; }
 
         [StringLength(1000)]
-        public string Description { get; set; }
+        public string? Description { get; set; }
+
+        public RepaymentType RepaymentType { get; set; } = RepaymentType.LongTerm;
 
 
         [StringLength(500, ErrorMessage = "Purpose cannot exceed 500 characters")]
-        public string Purpose { get; set; }
+        public string? Purpose { get; set; }
 
         [Required]
         [Range(1, 600, ErrorMessage = "Term months must be between 1 and 600")]

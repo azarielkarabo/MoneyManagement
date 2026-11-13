@@ -20,6 +20,10 @@ namespace Money.Management.Entities
         public DateTime IssuedDate { get; set; }
         public DateTime DueDate { get; set; }
 
+        // Month-end loans are due at the end of the month they are registered in;
+        // long-term loans are due after the term. Existing loans default to long-term.
+        public RepaymentType RepaymentType { get; set; } = RepaymentType.LongTerm;
+
         // Calculated Amounts
         public decimal InterestAmount { get; set; }
         public decimal TotalAmount { get; set; }
@@ -59,7 +63,8 @@ namespace Money.Management.Entities
             IssuedDate = DateTime.UtcNow;
             DueDate = dueDate;
             Purpose = purpose;
-            Status = CreditStatus.Pending;
+            // A loan is live as soon as it is created; no separate approval step.
+            Status = CreditStatus.Active;
             AmountPaid = 0;
 
             CalculateMoneyAmounts();
