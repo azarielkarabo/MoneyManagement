@@ -131,6 +131,7 @@ namespace Money.Management.Services
         [Authorize(MoneyManagementPermissions.Payments.Create)]
         public async Task<PaymentDto> CreateAsync(CreatePaymentDto input)
         {
+            EnsureNotAdmin();
             var lenderId = await GetLenderScopeAsync();
             var credit = await _creditRepository.GetAsync(input.CreditId);
 
@@ -193,6 +194,7 @@ namespace Money.Management.Services
         [Authorize(MoneyManagementPermissions.Payments.Delete)]
         public async Task DeleteAsync(Guid id)
         {
+            EnsureNotAdmin();
             var lenderId = await GetLenderScopeAsync();
             var payment = await _paymentRepository.GetAsync(id);
             var credit = await _creditRepository.GetAsync(payment.CreditId);
@@ -271,6 +273,7 @@ namespace Money.Management.Services
         [Authorize(MoneyManagementPermissions.Payments.Approve)]
         public async Task<PaymentDto> ApprovePaymentAsync(Guid id)
         {
+            EnsureNotAdmin();
             var lenderId = await GetLenderScopeAsync();
             var payment = await _paymentRepository.GetAsync(id);
             var credit = await _creditRepository.GetAsync(payment.CreditId);
@@ -335,5 +338,17 @@ namespace Money.Management.Services
             var payments = await AsyncExecuter.ToListAsync(queryable);
             return ObjectMapper.Map<List<Payment>, List<PaymentDto>>(payments);
         }
+
+        /// <summary>
+        /// Administrators see every lender's book but cannot change it:
+        /// loans and payments belong to the lender who issued them.
+        /// </summary>
+        private void EnsureNotAdmin()
+        {
+            if (CurrentUser.IsInRole("admin"))
+                throw new Volo.Abp.UserFriendlyException(
+                    "Administrators can view loans and payments but not change them. They are managed by the lender who issued the loan.");
+        }
+
     }
 }

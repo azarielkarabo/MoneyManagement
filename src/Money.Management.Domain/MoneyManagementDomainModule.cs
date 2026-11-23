@@ -1,3 +1,4 @@
+using Money.Management.BlobContainers;
 using Money.Management.Localization;
 using Money.Management.MultiTenancy;
 using Microsoft.Extensions.DependencyInjection;
@@ -5,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using PdfSharp.Fonts;
 using Volo.Abp.AuditLogging;
 using Volo.Abp.BackgroundJobs;
+using Volo.Abp.BlobStoring;
 using Volo.Abp.BlobStoring.Database;
 using Volo.Abp.Caching;
 using Volo.Abp.Emailing;
@@ -44,6 +46,12 @@ public class MoneyManagementDomainModule : AbpModule
         Configure<AbpMultiTenancyOptions>(options =>
         {
             options.IsEnabled = MultiTenancyConsts.IsEnabled;
+        });
+
+        // Profile pictures live in the database blob store (AbpBlobContainers/AbpBlobs tables).
+        Configure<AbpBlobStoringOptions>(options =>
+        {
+            options.Containers.Configure<ProfilePictureContainer>(container => container.UseDatabase());
         });
 
         Configure<AbpLocalizationOptions>(options =>

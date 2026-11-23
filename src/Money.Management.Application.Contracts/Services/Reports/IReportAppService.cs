@@ -7,7 +7,8 @@ namespace Money.Management.Services.Reports
 {
     public interface IReportAppService : IApplicationService
     {
-        Task<LoanReportDto> GetLoanReportAsync(DateTime fromDate, DateTime toDate);
+        /// <summary>GET /api/app/report/loan-report?fromDate&amp;toDate&amp;lenderId (lenderId: admins only).</summary>
+        Task<LoanReportDto> GetLoanReportAsync(DateTime fromDate, DateTime toDate, Guid? lenderId = null);
         Task<BudgetReportDto> GetBudgetReportAsync(int year);
         Task<ReportSummaryDto> GetSummaryReportAsync();
     }

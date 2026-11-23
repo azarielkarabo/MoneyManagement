@@ -69,6 +69,7 @@ public class MoneyManagementDbContext :
     public DbSet<FinancialAccount> FinancialAccounts { get; set; }
     public DbSet<AccountTransfer> AccountTransfers { get; set; }
     public DbSet<ExpenseEntry> ExpenseEntries { get; set; }
+    public DbSet<CapitalTransaction> CapitalTransactions { get; set; }
 
     public MoneyManagementDbContext(DbContextOptions<MoneyManagementDbContext> options)
         : base(options)
@@ -560,6 +561,27 @@ public class MoneyManagementDbContext :
             b.HasIndex(x => x.BudgetItemId);
             b.HasIndex(x => x.AccountId);
             b.HasIndex(x => new { x.UserId, x.EntryDate });
+        });
+
+        // ============ CapitalTransaction Configuration ============
+        builder.Entity<CapitalTransaction>(b =>
+        {
+            b.ToTable("CapitalTransactions");
+            b.ConfigureByConvention();
+
+            b.Property(x => x.Amount)
+                .IsRequired()
+                .HasColumnType("decimal(18,2)");
+
+            b.Property(x => x.Notes)
+                .HasMaxLength(500);
+
+            b.HasOne(x => x.Lender)
+                .WithMany()
+                .HasForeignKey(x => x.LenderId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            b.HasIndex(x => new { x.LenderId, x.TransactionDate });
         });
 
         // ============ BorrowerDocument Configuration ============

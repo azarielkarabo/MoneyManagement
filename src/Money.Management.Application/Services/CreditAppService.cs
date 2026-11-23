@@ -142,6 +142,7 @@ namespace Money.Management.Services
         [Authorize(MoneyManagementPermissions.Credits.Create)]
         public async Task<CreditDto> CreateAsync(CreateCreditDto input)
         {
+            EnsureNotAdmin();
             var lenderId = await GetCurrentLenderIdAsync(); // only a lender can create a loan
             var credit = new Credit(
                 GuidGenerator.Create(),
@@ -168,6 +169,7 @@ namespace Money.Management.Services
         [Authorize(MoneyManagementPermissions.Credits.Edit)]
         public async Task<CreditDto> UpdateAsync(Guid id, UpdateCreditDto input)
         {
+            EnsureNotAdmin();
             var credit = await _creditRepository.GetAsync(id);
 
             // Only allow updates if credit is not paid off
@@ -232,6 +234,7 @@ namespace Money.Management.Services
         [Authorize(MoneyManagementPermissions.Credits.Edit)]
         public async Task<CreditDto> TopUpAsync(Guid id, TopUpCreditDto input)
         {
+            EnsureNotAdmin();
             var credit = await _creditRepository.GetAsync(id);
 
             if (credit.Status == CreditStatus.Cancelled || credit.Status == CreditStatus.Defaulted)
@@ -265,6 +268,7 @@ namespace Money.Management.Services
         [Authorize(MoneyManagementPermissions.Credits.Delete)]
         public async Task DeleteAsync(Guid id)
         {
+            EnsureNotAdmin();
             var credit = await _creditRepository.GetAsync(id);
 
             // Check if credit has payments
@@ -371,6 +375,7 @@ namespace Money.Management.Services
         [Authorize(MoneyManagementPermissions.Credits.Approve)]
         public async Task<CreditDto> ApproveAsync(Guid id)
         {
+            EnsureNotAdmin();
             var credit = await _creditRepository.GetAsync(id);
             credit.ApproveCredit();
             await _creditRepository.UpdateAsync(credit);
@@ -469,5 +474,17 @@ namespace Money.Management.Services
 
             await _borrowerRepository.UpdateAsync(borrower);
         }
+
+        /// <summary>
+        /// Administrators see every lender's book but cannot change it:
+        /// loans and payments belong to the lender who issued them.
+        /// </summary>
+        private void EnsureNotAdmin()
+        {
+            if (CurrentUser.IsInRole("admin"))
+                throw new Volo.Abp.UserFriendlyException(
+                    "Administrators can view loans and payments but not change them. They are managed by the lender who issued the loan.");
+        }
+
     }
 }

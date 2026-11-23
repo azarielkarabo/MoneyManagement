@@ -50,10 +50,13 @@ namespace Money.Management.Services
             return (await _lenderManager.GetCurrentLenderAsync()).Id;
         }
 
+        /// <param name="lenderId">
+        /// Admins only: the lender to report on (null = all lenders). Lenders always get their own report.
+        /// </param>
         [Authorize(MoneyManagementPermissions.Reports.Generate)]
-        public async Task<LoanReportDto> GetLoanReportAsync(DateTime fromDate, DateTime toDate)
+        public async Task<LoanReportDto> GetLoanReportAsync(DateTime fromDate, DateTime toDate, Guid? lenderId = null)
         {
-            var lenderId = await GetLenderScopeAsync();
+            lenderId = CurrentUser.IsInRole("admin") ? lenderId : await GetLenderScopeAsync();
             var loans = await _creditRepository.GetListAsync(
                 l => (lenderId == null || l.LenderId == lenderId) && l.IssuedDate >= fromDate && l.IssuedDate <= toDate);
 
