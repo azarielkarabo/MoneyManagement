@@ -10,7 +10,6 @@ using Volo.Abp.Application.Services;
 using Volo.Abp.Authorization;
 using Volo.Abp.BlobStoring;
 using Volo.Abp.Content;
-using Volo.Abp.Domain.Entities;
 
 namespace Money.Management.Services
 {
@@ -58,11 +57,11 @@ namespace Money.Management.Services
             await _container.SaveAsync(BlobName(CurrentUserId()), bytes, overrideExisting: true);
         }
 
-        public async Task<IRemoteStreamContent> GetAsync(Guid id)
+        public async Task<IRemoteStreamContent?> GetAsync(Guid id)
         {
             var bytes = await _container.GetAllBytesOrNullAsync(BlobName(id));
             if (bytes == null)
-                throw new EntityNotFoundException(typeof(ProfilePictureContainer), id);
+                return null; // No picture yet is normal: the API answers 204 No Content and the UI shows initials.
 
             var mimeType = DetectImageType(bytes) ?? "application/octet-stream";
             return new RemoteStreamContent(new MemoryStream(bytes), $"{id}", mimeType);
