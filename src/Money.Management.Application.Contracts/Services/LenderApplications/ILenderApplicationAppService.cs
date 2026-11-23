@@ -9,6 +9,8 @@ namespace Money.Management.Services.LenderApplications
     public interface ILenderApplicationAppService : IApplicationService
     {
         Task<LenderApplicationDto> CreateAsync(CreateLenderApplicationDto input);
+        Task<LenderApplicationDto> ApplyAsync(ApplyAsLenderDto input);
+        Task<LenderApplicationDto?> GetMyApplicationAsync();
         Task<LenderApplicationDto> GetAsync(Guid id);
         Task<PagedResultDto<LenderApplicationDto>> GetListAsync(GetLenderApplicationsInput input);
         Task<ApproveLenderApplicationResultDto> ApproveAsync(Guid id, ApproveLenderApplicationDto input);

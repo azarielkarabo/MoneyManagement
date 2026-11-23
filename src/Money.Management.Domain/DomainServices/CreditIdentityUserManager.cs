@@ -98,6 +98,9 @@ namespace Money.Management.DomainServices
                     .WithData("Errors", errors);
             }
 
+            // Everyone is an account holder (the default role), whatever else they become.
+            await _identityUserManager.AddDefaultRolesAsync(identityUser);
+
             return identityUser;
         }
 

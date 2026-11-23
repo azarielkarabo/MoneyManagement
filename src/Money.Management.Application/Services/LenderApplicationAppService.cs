@@ -12,6 +12,7 @@ using Volo.Abp.Application.Dtos;
 using Volo.Abp.Application.Services;
 using Volo.Abp.Domain.Repositories;
 using Volo.Abp.Identity;
+using Volo.Abp.Users;
 
 namespace Money.Management.Services.LenderApplications
 {
@@ -60,6 +61,54 @@ namespace Money.Management.Services.LenderApplications
             return ObjectMapper.Map<LenderApplication, LenderApplicationDto>(application);
         }
 
+        // A signed-in account holder applies to become a lender, using their own account.
+        [Authorize]
+        public async Task<LenderApplicationDto> ApplyAsync(ApplyAsLenderDto input)
+        {
+            var user = await _identityUserManager.GetByIdAsync(CurrentUser.GetId());
+
+            if (await _identityUserManager.IsInRoleAsync(user, LenderRoleName))
+            {
+                throw new UserFriendlyException("You are already a lender.");
+            }
+            if (string.IsNullOrWhiteSpace(user.Email))
+            {
+                throw new UserFriendlyException("Add an email address to your profile before applying.");
+            }
+
+            var application = await _applicationManager.CreateAsync(
+                string.IsNullOrWhiteSpace(user.Name) ? user.UserName : user.Name,
+                string.IsNullOrWhiteSpace(user.Surname) ? "-" : user.Surname,
+                user.Email,
+                input.PhoneNumber ?? user.PhoneNumber,
+                user.UserName,
+                input.Position,
+                input.Message,
+                forExistingUser: true
+            );
+
+            await _applicationRepository.InsertAsync(application);
+
+            return ObjectMapper.Map<LenderApplication, LenderApplicationDto>(application);
+        }
+
+        // The signed-in user's most recent lender application, if any.
+        [Authorize]
+        public async Task<LenderApplicationDto?> GetMyApplicationAsync()
+        {
+            var email = CurrentUser.Email;
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                return null;
+            }
+
+            var queryable = await _applicationRepository.GetQueryableAsync();
+            var application = await AsyncExecuter.FirstOrDefaultAsync(
+                queryable.Where(a => a.Email == email).OrderByDescending(a => a.CreationTime));
+
+            return application == null ? null : ObjectMapper.Map<LenderApplication, LenderApplicationDto>(application);
+        }
+
         [Authorize(MoneyManagementPermissions.LenderApplications.Default)]
         public async Task<LenderApplicationDto> GetAsync(Guid id)
         {
@@ -104,18 +153,28 @@ namespace Money.Management.Services.LenderApplications
         {
             var application = await _applicationManager.GetPendingAsync(id);
 
-            var temporaryPassword = GenerateTemporaryPassword();
-
-            var user = await _userManager.CreateIdentityUserAsync(
-                application.DesiredUserName,
-                application.Email,
-                temporaryPassword,
-                application.PhoneNumber,
-                application.FirstName,
-                application.LastName,
-                isActive: true,
-                tenantId: null
-            );
+            // Applied from inside the app: the account already exists, so it just gains the
+            // lender role. Otherwise (older public applications) a new account is created.
+            string? temporaryPassword = null;
+            var user = await _identityUserManager.FindByEmailAsync(application.Email);
+            if (user == null)
+            {
+                temporaryPassword = GenerateTemporaryPassword();
+                user = await _userManager.CreateIdentityUserAsync(
+                    application.DesiredUserName,
+                    application.Email,
+                    temporaryPassword,
+                    application.PhoneNumber,
+                    application.FirstName,
+                    application.LastName,
+                    isActive: true,
+                    tenantId: null
+                );
+            }
+            else if (await _identityUserManager.IsInRoleAsync(user, LenderRoleName))
+            {
+                throw new UserFriendlyException("This person is already a lender.");
+            }
 
             var roleResult = await _identityUserManager.AddToRoleAsync(user, LenderRoleName);
             if (!roleResult.Succeeded)

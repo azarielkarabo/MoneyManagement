@@ -32,8 +32,8 @@ namespace Money.Management.Services.credits.Dtos
         [StringLength(500, ErrorMessage = "Purpose cannot exceed 500 characters")]
         public string? Purpose { get; set; }
 
-        [Required]
-        [Range(1, 600, ErrorMessage = "Term months must be between 1 and 600")]
+        // Optional: informal loans have no fixed repayment term (0 = open-ended).
+        [Range(0, 600, ErrorMessage = "Term months must be between 0 and 600")]
         public int TermMonths { get; set; }
 
     }

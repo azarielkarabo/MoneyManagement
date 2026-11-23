@@ -38,6 +38,10 @@ namespace Money.Management.Services
         public async Task<BudgetDto> GetBudgetAsync(Guid id)
         {
             var budget = await _budgetRepository.GetAsync(id);
+            if (budget.UserId != CurrentUser.Id && !CurrentUser.IsInRole("admin"))
+            {
+                throw new Volo.Abp.Authorization.AbpAuthorizationException("This budget belongs to someone else.");
+            }
             var items = await _budgetItemRepository.GetListAsync(i => i.BudgetId == id);
             return ToDtoWithItems(budget, items);
         }
@@ -47,8 +51,11 @@ namespace Money.Management.Services
         {
             var queryable = await _budgetRepository.GetQueryableAsync();
 
-            if (input.UserId.HasValue)
-                queryable = queryable.Where(b => b.UserId == input.UserId.Value);
+            // Budgets are personal: everyone sees their own; an admin may ask for another user's.
+            var budgetOwnerId = input.UserId.HasValue && CurrentUser.IsInRole("admin")
+                ? input.UserId.Value
+                : CurrentUser.Id!.Value;
+            queryable = queryable.Where(b => b.UserId == budgetOwnerId);
             if (input.Month.HasValue)
                 queryable = queryable.Where(b => b.Month == input.Month.Value);
             if (input.Year.HasValue)

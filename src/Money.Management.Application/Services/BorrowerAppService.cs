@@ -56,6 +56,17 @@ namespace Money.Management.Services
             return lender.Id;
         }
 
+
+        // Admins see everything (null = no lender filter); lenders only see their own data.
+        private async Task<Guid?> GetLenderScopeAsync()
+        {
+            if (CurrentUser.IsInRole("admin"))
+            {
+                return null;
+            }
+            return (await _lenderManager.GetCurrentLenderAsync()).Id;
+        }
+
         [Authorize(MoneyManagementPermissions.Borrowers.Default)]
         public async Task<BorrowerDto> GetAsync(Guid id)
         {
@@ -73,11 +84,11 @@ namespace Money.Management.Services
         [Authorize(MoneyManagementPermissions.Borrowers.Default)]
         public async Task<PagedResultDto<BorrowerDto>> GetListAsync(GetBorrowersInput input)
         {
-            var lenderId = await GetCurrentLenderIdAsync();
+            var lenderId = await GetLenderScopeAsync();
             var queryable = await _borrowerRepository.GetQueryableAsync();
 
             // Filter by current lender
-            queryable = queryable.Where(b => b.LenderId == lenderId);
+            queryable = queryable.Where(b => (lenderId == null || b.LenderId == lenderId));
 
             // Apply filtering
             if (!string.IsNullOrWhiteSpace(input.Filter))
@@ -122,13 +133,13 @@ namespace Money.Management.Services
         [Authorize(MoneyManagementPermissions.Borrowers.Create)]
         public async Task<BorrowerDto> CreateAsync(CreateBorrowerDto input)
         {
-            var lenderId = await GetCurrentLenderIdAsync();
+            var lenderId = await GetCurrentLenderIdAsync(); // only a lender can capture a borrower
 
             // Check for duplicate ID number within this lender (only when one was provided)
             if (!string.IsNullOrWhiteSpace(input.IdNumber))
             {
                 var existingBorrower = await _borrowerRepository
-                    .FirstOrDefaultAsync(b => b.LenderId == lenderId && b.IdNumber == input.IdNumber);
+                    .FirstOrDefaultAsync(b => (lenderId == null || b.LenderId == lenderId) && b.IdNumber == input.IdNumber);
 
                 if (existingBorrower != null)
                 {
@@ -164,11 +175,11 @@ namespace Money.Management.Services
         [Authorize(MoneyManagementPermissions.Borrowers.Edit)]
         public async Task<BorrowerDto> UpdateAsync(Guid id, UpdateBorrowerDto input)
         {
-            var lenderId = await GetCurrentLenderIdAsync();
+            var lenderId = await GetLenderScopeAsync();
             var borrower = await _borrowerRepository.GetAsync(id);
 
             // Verify borrower belongs to current lender
-            if (borrower.LenderId != lenderId)
+            if (lenderId != null && borrower.LenderId != lenderId)
             {
                 throw new UnauthorizedAccessException("You do not have permission to update this borrower.");
             }
@@ -177,7 +188,7 @@ namespace Money.Management.Services
             if (!string.IsNullOrWhiteSpace(input.IdNumber) && borrower.IdNumber != input.IdNumber)
             {
                 var existingWithIdNumber = await _borrowerRepository
-                    .FirstOrDefaultAsync(b => b.LenderId == lenderId && b.IdNumber == input.IdNumber);
+                    .FirstOrDefaultAsync(b => (lenderId == null || b.LenderId == lenderId) && b.IdNumber == input.IdNumber);
 
                 if (existingWithIdNumber != null)
                 {
@@ -210,11 +221,11 @@ namespace Money.Management.Services
         [Authorize(MoneyManagementPermissions.Borrowers.Delete)]
         public async Task DeleteAsync(Guid id)
         {
-            var lenderId = await GetCurrentLenderIdAsync();
+            var lenderId = await GetLenderScopeAsync();
             var borrower = await _borrowerRepository.GetAsync(id);
 
             // Verify borrower belongs to current lender
-            if (borrower.LenderId != lenderId)
+            if (lenderId != null && borrower.LenderId != lenderId)
             {
                 throw new UnauthorizedAccessException("You do not have permission to delete this borrower.");
             }
@@ -270,10 +281,11 @@ namespace Money.Management.Services
         [Authorize]
         public async Task<PagedResultDto<CreditDto>> GetMyMoneysAsync(GetBorrowerCreditsInput input)
         {
-            var borrower = await _borrowerManager.GetCurrentBorrowerAsync();
+            // An account holder may borrow from several lenders, or from none yet.
+            var borrowerIds = (await _borrowerManager.GetCurrentUserBorrowersAsync()).Select(b => b.Id).ToList();
 
             var queryable = await _creditRepository.GetQueryableAsync();
-            queryable = queryable.Where(l => l.BorrowerId == borrower.Id);
+            queryable = queryable.Where(l => borrowerIds.Contains(l.BorrowerId));
 
             if (input.Status.HasValue)
             {
@@ -290,23 +302,44 @@ namespace Money.Management.Services
             var credits = await AsyncExecuter.ToListAsync(queryable);
             var dtos = ObjectMapper.Map<List<Credit>, List<CreditDto>>(credits);
 
+            var lenderNames = await GetLenderNamesAsync(credits.Select(c => c.LenderId));
             foreach (var dto in dtos)
             {
                 dto.PaymentProgress = dto.TotalAmount > 0
                     ? (dto.AmountPaid / dto.TotalAmount) * 100
                     : 0;
+                dto.LenderName = lenderNames.GetValueOrDefault(dto.LenderId);
             }
 
             return new PagedResultDto<CreditDto>(totalCount, dtos);
         }
 
+        // Display names of lenders (their account's name and surname).
+        private async Task<Dictionary<Guid, string>> GetLenderNamesAsync(IEnumerable<Guid> lenderIds)
+        {
+            var ids = lenderIds.Distinct().ToList();
+            var lenderRepository = LazyServiceProvider.LazyGetRequiredService<IRepository<Lender, Guid>>();
+            var userRepository = LazyServiceProvider.LazyGetRequiredService<IRepository<Volo.Abp.Identity.IdentityUser, Guid>>();
+
+            var lenders = await lenderRepository.GetListAsync(l => ids.Contains(l.Id));
+            var userIds = lenders.Select(l => l.UserId).ToList();
+            var users = (await userRepository.GetListAsync(u => userIds.Contains(u.Id))).ToDictionary(u => u.Id);
+
+            return lenders.ToDictionary(l => l.Id, l =>
+            {
+                if (!users.TryGetValue(l.UserId, out var u)) return "Lender";
+                var full = string.Join(" ", new[] { u.Name, u.Surname }.Where(x => !string.IsNullOrWhiteSpace(x)));
+                return string.IsNullOrWhiteSpace(full) ? u.UserName : full;
+            });
+        }
+
         [Authorize]
         public async Task<PagedResultDto<PaymentDto>> GetMyPaymentsAsync(GetBorrowerPaymentsInput input)
         {
-            var borrower = await _borrowerManager.GetCurrentBorrowerAsync();
+            var borrowerIds = (await _borrowerManager.GetCurrentUserBorrowersAsync()).Select(b => b.Id).ToList();
 
             var queryable = await _paymentRepository.GetQueryableAsync();
-            queryable = queryable.Where(p => p.BorrowerId == borrower.Id);
+            queryable = queryable.Where(p => borrowerIds.Contains(p.BorrowerId));
 
             var totalCount = await AsyncExecuter.CountAsync(queryable);
 
@@ -326,17 +359,17 @@ namespace Money.Management.Services
             Guid borrowerId,
             GetBorrowerCreditsInput input)
         {
-            var lenderId = await GetCurrentLenderIdAsync();
+            var lenderId = await GetLenderScopeAsync();
 
             // Verify borrower exists and belongs to current lender
             var borrower = await _borrowerRepository.GetAsync(borrowerId);
-            if (borrower.LenderId != lenderId)
+            if (lenderId != null && borrower.LenderId != lenderId)
             {
                 throw new UnauthorizedAccessException("You do not have permission to view this borrower's Moneys.");
             }
 
             var queryable = await _creditRepository.GetQueryableAsync();
-            queryable = queryable.Where(l => l.BorrowerId == borrowerId && l.LenderId == lenderId);
+            queryable = queryable.Where(l => l.BorrowerId == borrowerId && (lenderId == null || l.LenderId == lenderId));
 
             // Apply additional filters
             if (input.Status.HasValue)
@@ -370,11 +403,11 @@ namespace Money.Management.Services
             Guid borrowerId,
             GetBorrowerPaymentsInput input)
         {
-            var lenderId = await GetCurrentLenderIdAsync();
+            var lenderId = await GetLenderScopeAsync();
 
             // Verify borrower exists and belongs to current lender
             var borrower = await _borrowerRepository.GetAsync(borrowerId);
-            if (borrower.LenderId != lenderId)
+            if (lenderId != null && borrower.LenderId != lenderId)
             {
                 throw new UnauthorizedAccessException("You do not have permission to view this borrower's payments.");
             }
@@ -398,11 +431,11 @@ namespace Money.Management.Services
         [Authorize(MoneyManagementPermissions.Borrowers.Edit)]
         public async Task RecalculateFinancialsAsync(Guid id)
         {
-            var lenderId = await GetCurrentLenderIdAsync();
+            var lenderId = await GetLenderScopeAsync();
             var borrower = await _borrowerRepository.GetAsync(id);
 
             // Verify borrower belongs to current lender
-            if (borrower.LenderId != lenderId)
+            if (lenderId != null && borrower.LenderId != lenderId)
             {
                 throw new UnauthorizedAccessException("You do not have permission to update this borrower.");
             }
@@ -413,18 +446,18 @@ namespace Money.Management.Services
         [Authorize(MoneyManagementPermissions.Borrowers.Default)]
         public async Task<bool> CheckIdNumberAvailabilityAsync(string idNumber)
         {
-            var lenderId = await GetCurrentLenderIdAsync();
-            var exists = await _borrowerRepository.AnyAsync(b => b.LenderId == lenderId && b.IdNumber == idNumber);
+            var lenderId = await GetLenderScopeAsync();
+            var exists = await _borrowerRepository.AnyAsync(b => (lenderId == null || b.LenderId == lenderId) && b.IdNumber == idNumber);
             return !exists;
         }
 
         [Authorize(MoneyManagementPermissions.Borrowers.Edit)]
         public async Task SuspendBorrowerAsync(Guid borrowerId, string reason)
         {
-            var lenderId = await GetCurrentLenderIdAsync();
+            var lenderId = await GetLenderScopeAsync();
             var borrower = await _borrowerRepository.GetAsync(borrowerId);
 
-            if (borrower.LenderId != lenderId)
+            if (lenderId != null && borrower.LenderId != lenderId)
             {
                 throw new UnauthorizedAccessException("You do not have permission to suspend this borrower.");
             }
@@ -435,10 +468,10 @@ namespace Money.Management.Services
         [Authorize(MoneyManagementPermissions.Borrowers.Edit)]
         public async Task BlacklistBorrowerAsync(Guid borrowerId, string reason)
         {
-            var lenderId = await GetCurrentLenderIdAsync();
+            var lenderId = await GetLenderScopeAsync();
             var borrower = await _borrowerRepository.GetAsync(borrowerId);
 
-            if (borrower.LenderId != lenderId)
+            if (lenderId != null && borrower.LenderId != lenderId)
             {
                 throw new UnauthorizedAccessException("You do not have permission to blacklist this borrower.");
             }
@@ -449,10 +482,10 @@ namespace Money.Management.Services
         [Authorize(MoneyManagementPermissions.Borrowers.ViewFinancials)]
         public async Task<decimal> GetDebtToIncomeRatioAsync(Guid borrowerId)
         {
-            var lenderId = await GetCurrentLenderIdAsync();
+            var lenderId = await GetLenderScopeAsync();
             var borrower = await _borrowerRepository.GetAsync(borrowerId);
 
-            if (borrower.LenderId != lenderId)
+            if (lenderId != null && borrower.LenderId != lenderId)
             {
                 throw new UnauthorizedAccessException("You do not have permission to view this borrower's information.");
             }
@@ -465,9 +498,9 @@ namespace Money.Management.Services
         [Authorize(MoneyManagementPermissions.Borrowers.Edit)]
         public async Task<BorrowerDocumentDto> UploadDocumentAsync(Guid borrowerId, UploadBorrowerDocumentDto input)
         {
-            var lenderId = await GetCurrentLenderIdAsync();
+            var lenderId = await GetLenderScopeAsync();
             var borrower = await _borrowerRepository.GetAsync(borrowerId);
-            if (borrower.LenderId != lenderId)
+            if (lenderId != null && borrower.LenderId != lenderId)
                 throw new UnauthorizedAccessException("You do not have permission to manage this borrower's documents.");
 
             var document = new BorrowerDocument(
@@ -491,9 +524,9 @@ namespace Money.Management.Services
             Guid borrowerId,
             PagedAndSortedResultRequestDto input)
         {
-            var lenderId = await GetCurrentLenderIdAsync();
+            var lenderId = await GetLenderScopeAsync();
             var borrower = await _borrowerRepository.GetAsync(borrowerId);
-            if (borrower.LenderId != lenderId)
+            if (lenderId != null && borrower.LenderId != lenderId)
                 throw new UnauthorizedAccessException("You do not have permission to view this borrower's documents.");
 
             var queryable = await _documentRepository.GetQueryableAsync();
@@ -515,9 +548,9 @@ namespace Money.Management.Services
         [Authorize(MoneyManagementPermissions.Borrowers.Edit)]
         public async Task<BorrowerDocumentDto> VerifyDocumentAsync(Guid borrowerId, Guid documentId)
         {
-            var lenderId = await GetCurrentLenderIdAsync();
+            var lenderId = await GetLenderScopeAsync();
             var borrower = await _borrowerRepository.GetAsync(borrowerId);
-            if (borrower.LenderId != lenderId)
+            if (lenderId != null && borrower.LenderId != lenderId)
                 throw new UnauthorizedAccessException("You do not have permission to verify this document.");
 
             var document = await _documentRepository.GetAsync(documentId);
@@ -537,9 +570,9 @@ namespace Money.Management.Services
             Guid documentId,
             RejectDocumentDto input)
         {
-            var lenderId = await GetCurrentLenderIdAsync();
+            var lenderId = await GetLenderScopeAsync();
             var borrower = await _borrowerRepository.GetAsync(borrowerId);
-            if (borrower.LenderId != lenderId)
+            if (lenderId != null && borrower.LenderId != lenderId)
                 throw new UnauthorizedAccessException("You do not have permission to reject this document.");
 
             var document = await _documentRepository.GetAsync(documentId);
@@ -558,9 +591,9 @@ namespace Money.Management.Services
             Guid borrowerId,
             AddBorrowerBankAccountDto input)
         {
-            var lenderId = await GetCurrentLenderIdAsync();
+            var lenderId = await GetLenderScopeAsync();
             var borrower = await _borrowerRepository.GetAsync(borrowerId, includeDetails: true);
-            if (borrower.LenderId != lenderId)
+            if (lenderId != null && borrower.LenderId != lenderId)
                 throw new UnauthorizedAccessException("You do not have permission to manage this borrower's bank accounts.");
 
             var account = borrower.AddBankAccount(
@@ -581,9 +614,9 @@ namespace Money.Management.Services
         [Authorize(MoneyManagementPermissions.Borrowers.Default)]
         public async Task<IReadOnlyList<BorrowerBankAccountDto>> GetBankAccountsAsync(Guid borrowerId)
         {
-            var lenderId = await GetCurrentLenderIdAsync();
+            var lenderId = await GetLenderScopeAsync();
             var borrower = await _borrowerRepository.GetAsync(borrowerId, includeDetails: true);
-            if (borrower.LenderId != lenderId)
+            if (lenderId != null && borrower.LenderId != lenderId)
                 throw new UnauthorizedAccessException("You do not have permission to view this borrower's bank accounts.");
 
             return ObjectMapper.Map<IReadOnlyCollection<BorrowerBankAccount>, List<BorrowerBankAccountDto>>(
@@ -593,9 +626,9 @@ namespace Money.Management.Services
         [Authorize(MoneyManagementPermissions.Borrowers.Edit)]
         public async Task SetPrimaryBankAccountAsync(Guid borrowerId, Guid accountId)
         {
-            var lenderId = await GetCurrentLenderIdAsync();
+            var lenderId = await GetLenderScopeAsync();
             var borrower = await _borrowerRepository.GetAsync(borrowerId, includeDetails: true);
-            if (borrower.LenderId != lenderId)
+            if (lenderId != null && borrower.LenderId != lenderId)
                 throw new UnauthorizedAccessException("You do not have permission to manage this borrower's bank accounts.");
 
             borrower.SetPrimaryBankAccount(accountId);
@@ -605,9 +638,9 @@ namespace Money.Management.Services
         [Authorize(MoneyManagementPermissions.Borrowers.Edit)]
         public async Task VerifyBankAccountAsync(Guid borrowerId, Guid accountId)
         {
-            var lenderId = await GetCurrentLenderIdAsync();
+            var lenderId = await GetLenderScopeAsync();
             var borrower = await _borrowerRepository.GetAsync(borrowerId, includeDetails: true);
-            if (borrower.LenderId != lenderId)
+            if (lenderId != null && borrower.LenderId != lenderId)
                 throw new UnauthorizedAccessException("You do not have permission to manage this borrower's bank accounts.");
 
             var account = borrower.BankAccounts.FirstOrDefault(a => a.Id == accountId)
@@ -620,9 +653,9 @@ namespace Money.Management.Services
         [Authorize(MoneyManagementPermissions.Borrowers.Edit)]
         public async Task DeleteBankAccountAsync(Guid borrowerId, Guid accountId)
         {
-            var lenderId = await GetCurrentLenderIdAsync();
+            var lenderId = await GetLenderScopeAsync();
             var borrower = await _borrowerRepository.GetAsync(borrowerId);
-            if (borrower.LenderId != lenderId)
+            if (lenderId != null && borrower.LenderId != lenderId)
                 throw new UnauthorizedAccessException("You do not have permission to manage this borrower's bank accounts.");
 
             var account = await _bankAccountRepository.GetAsync(accountId);

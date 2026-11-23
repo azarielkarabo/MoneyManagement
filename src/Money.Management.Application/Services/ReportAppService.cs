@@ -39,16 +39,27 @@ namespace Money.Management.Services
 
         // ── Loan report ────────────────────────────────────────────────────────────
 
+
+        // Admins see everything (null = no lender filter); lenders only see their own data.
+        private async Task<Guid?> GetLenderScopeAsync()
+        {
+            if (CurrentUser.IsInRole("admin"))
+            {
+                return null;
+            }
+            return (await _lenderManager.GetCurrentLenderAsync()).Id;
+        }
+
         [Authorize(MoneyManagementPermissions.Reports.Generate)]
         public async Task<LoanReportDto> GetLoanReportAsync(DateTime fromDate, DateTime toDate)
         {
-            var lenderId = (await _lenderManager.GetCurrentLenderAsync()).Id;
+            var lenderId = await GetLenderScopeAsync();
             var loans = await _creditRepository.GetListAsync(
-                l => l.LenderId == lenderId && l.IssuedDate >= fromDate && l.IssuedDate <= toDate);
+                l => (lenderId == null || l.LenderId == lenderId) && l.IssuedDate >= fromDate && l.IssuedDate <= toDate);
 
             var loanIds = loans.Select(l => l.Id).ToHashSet();
             var allRepayments = await _repaymentRepository.GetListAsync(
-                p => p.LenderId == lenderId && p.PaymentDate >= fromDate && p.PaymentDate <= toDate);
+                p => (lenderId == null || p.LenderId == lenderId) && p.PaymentDate >= fromDate && p.PaymentDate <= toDate);
             var repayments = allRepayments.Where(r => loanIds.Contains(r.CreditId)).ToList();
 
             // Interest earned = sum of InterestAmount on fully completed loans only
@@ -177,9 +188,9 @@ namespace Money.Management.Services
         [Authorize(MoneyManagementPermissions.Reports.Generate)]
         public async Task<ReportSummaryDto> GetSummaryReportAsync()
         {
-            var lenderId = (await _lenderManager.GetCurrentLenderAsync()).Id;
-            var loans = await _creditRepository.GetListAsync(l => l.LenderId == lenderId);
-            var repayments = await _repaymentRepository.GetListAsync(p => p.LenderId == lenderId);
+            var lenderId = await GetLenderScopeAsync();
+            var loans = await _creditRepository.GetListAsync(l => (lenderId == null || l.LenderId == lenderId));
+            var repayments = await _repaymentRepository.GetListAsync(p => (lenderId == null || p.LenderId == lenderId));
             var budgets = await _budgetRepository.GetListAsync();
             var budgetItems = await _budgetItemRepository.GetListAsync();
 

@@ -83,7 +83,7 @@ namespace Money.Management.DomainServices
 
             if (lender == null)
             {
-                throw new InvalidOperationException($"No lender found for user {userId}");
+                throw new Volo.Abp.UserFriendlyException("You need a lender account for this. Apply to become a lender from the app first.");
             }
 
             return lender;
@@ -164,7 +164,7 @@ namespace Money.Management.DomainServices
                 TotalMoneysCreated = lender.TotalMoneysCreated,
                 TotalBorrowersManaged = lender.TotalBorrowersManaged,
                 ActiveCredits = credits.Count(c => c.Status == CreditStatus.Active),
-                OverdueCredits = credits.Count(c => c.Status == CreditStatus.Overdue),
+                OverdueCredits = credits.Count(c => c.IsLate(DateTime.UtcNow)),
                 ApprovedCredits = credits.Count(c => c.Status == CreditStatus.Approved),
                 PaidOffCredits = credits.Count(c => c.Status == CreditStatus.PaidOff),
                 TotalAmountApproved = credits.Sum(c => c.TotalAmount),

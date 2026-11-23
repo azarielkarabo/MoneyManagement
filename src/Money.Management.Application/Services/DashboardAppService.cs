@@ -40,6 +40,17 @@ namespace Money.Management.Services
             return lender.Id;
         }
 
+
+        // Admins see everything (null = no lender filter); lenders only see their own data.
+        private async Task<Guid?> GetLenderScopeAsync()
+        {
+            if (CurrentUser.IsInRole("admin"))
+            {
+                return null;
+            }
+            return (await _lenderManager.GetCurrentLenderAsync()).Id;
+        }
+
         [Authorize(MoneyManagementPermissions.Dashboard.ViewFinancials)]
         public async Task<DashboardDto> GetDashboardDataAsync()
         {
@@ -60,11 +71,11 @@ namespace Money.Management.Services
         [Authorize(MoneyManagementPermissions.Dashboard.ViewFinancials)]
         public async Task<DashboardSummaryDto> GetSummaryAsync()
         {
-            var lenderId = await GetCurrentLenderIdAsync();
+            var lenderId = await GetLenderScopeAsync();
 
-            var credits = await _creditRepository.GetListAsync(c => c.LenderId == lenderId);
-            var borrowers = await _borrowerRepository.GetListAsync(b => b.LenderId == lenderId);
-            var payments = await _paymentRepository.GetListAsync(b => b.LenderId == lenderId);
+            var credits = await _creditRepository.GetListAsync(c => (lenderId == null || c.LenderId == lenderId));
+            var borrowers = await _borrowerRepository.GetListAsync(b => (lenderId == null || b.LenderId == lenderId));
+            var payments = await _paymentRepository.GetListAsync(b => (lenderId == null || b.LenderId == lenderId));
 
             var activeMoneys = credits.Where(l =>
                 l.Status == CreditStatus.Active ||
@@ -125,7 +136,7 @@ namespace Money.Management.Services
                 TotalInterestEarned = totalInterestEarned,
 
                 ActiveMoneysCount = credits.Count(l => l.Status == CreditStatus.Active),
-                OverdueMoneysCount = credits.Count(l => l.Status == CreditStatus.Overdue),
+                OverdueMoneysCount = credits.Count(l => l.IsLate(DateTime.UtcNow)),
                 PaidOffMoneysCount = credits.Count(l => l.Status == CreditStatus.PaidOff),
 
                 TotalBorrowersCount = borrowers.Count,
@@ -152,11 +163,11 @@ namespace Money.Management.Services
         [Authorize(MoneyManagementPermissions.Dashboard.ViewFinancials)]
         public async Task<MoneyStatusDistributionDto> GetMoneyDistributionAsync()
         {
-            var lenderId = await GetCurrentLenderIdAsync();
-            var credits = await _creditRepository.GetListAsync(c => c.LenderId == lenderId);
+            var lenderId = await GetLenderScopeAsync();
+            var credits = await _creditRepository.GetListAsync(c => (lenderId == null || c.LenderId == lenderId));
 
             var activeMoneys = credits.Where(l => l.Status == CreditStatus.Active).ToList();
-            var overdueMoneys = credits.Where(l => l.Status == CreditStatus.Overdue).ToList();
+            var overdueMoneys = credits.Where(l => l.IsLate(DateTime.UtcNow)).ToList();
             var paidOffMoneys = credits.Where(l => l.Status == CreditStatus.PaidOff).ToList();
             var rejectedMoneys = credits.Where(l => l.Status == CreditStatus.Rejected).ToList();
             var suspendedMoneys = credits.Where(l => l.Status == CreditStatus.Suspended).ToList();
@@ -192,11 +203,11 @@ namespace Money.Management.Services
         [Authorize(MoneyManagementPermissions.Dashboard.ViewFinancials)]
         public async Task<List<TopBorrowerDto>> GetTopBorrowersAsync(int count = 10)
         {
-            var lenderId = await GetCurrentLenderIdAsync();
+            var lenderId = await GetLenderScopeAsync();
 
-            var borrowers = await _borrowerRepository.GetListAsync(b => b.LenderId == lenderId);
-            var credits = await _creditRepository.GetListAsync(c => c.LenderId == lenderId);
-            var payments = await _paymentRepository.GetListAsync(p => p.LenderId == lenderId);
+            var borrowers = await _borrowerRepository.GetListAsync(b => (lenderId == null || b.LenderId == lenderId));
+            var credits = await _creditRepository.GetListAsync(c => (lenderId == null || c.LenderId == lenderId));
+            var payments = await _paymentRepository.GetListAsync(p => (lenderId == null || p.LenderId == lenderId));
 
             var topBorrowers = new List<TopBorrowerDto>();
 
@@ -241,10 +252,10 @@ namespace Money.Management.Services
         [Authorize(MoneyManagementPermissions.Dashboard.ViewFinancials)]
         public async Task<MoneyFlowDto> GetMoneyFlowAsync(int months = 12)
         {
-            var lenderId = await GetCurrentLenderIdAsync();
+            var lenderId = await GetLenderScopeAsync();
 
-            var credits = await _creditRepository.GetListAsync(c => c.LenderId == lenderId);
-            var payments = await _paymentRepository.GetListAsync(p => p.LenderId == lenderId);
+            var credits = await _creditRepository.GetListAsync(c => (lenderId == null || c.LenderId == lenderId));
+            var payments = await _paymentRepository.GetListAsync(p => (lenderId == null || p.LenderId == lenderId));
 
             var monthlyData = new List<MonthlyFlowDto>();
 
@@ -297,11 +308,11 @@ namespace Money.Management.Services
         [Authorize(MoneyManagementPermissions.Dashboard.ViewFinancials)]
         public async Task<List<RecentTransactionDto>> GetRecentTransactionsAsync(int count = 10)
         {
-            var lenderId = await GetCurrentLenderIdAsync();
+            var lenderId = await GetLenderScopeAsync();
 
-            var credits = await _creditRepository.GetListAsync(c => c.LenderId == lenderId);
-            var payments = await _paymentRepository.GetListAsync(p=>p.LenderId == lenderId);
-            var borrowers = await _borrowerRepository.GetListAsync(b => b.LenderId == lenderId);
+            var credits = await _creditRepository.GetListAsync(c => (lenderId == null || c.LenderId == lenderId));
+            var payments = await _paymentRepository.GetListAsync(p=>(lenderId == null || p.LenderId == lenderId));
+            var borrowers = await _borrowerRepository.GetListAsync(b => (lenderId == null || b.LenderId == lenderId));
 
             var transactions = new List<RecentTransactionDto>();
 
@@ -349,10 +360,10 @@ namespace Money.Management.Services
         [Authorize(MoneyManagementPermissions.Dashboard.ViewFinancials)]
         public async Task<CollectionMetricsDto> GetCollectionMetricsAsync()
         {
-            var lenderId = await GetCurrentLenderIdAsync();
+            var lenderId = await GetLenderScopeAsync();
 
-            var credits = await _creditRepository.GetListAsync(c => c.LenderId == lenderId);
-            var payments = await _paymentRepository.GetListAsync(p => p.LenderId == lenderId);
+            var credits = await _creditRepository.GetListAsync(c => (lenderId == null || c.LenderId == lenderId));
+            var payments = await _paymentRepository.GetListAsync(p => (lenderId == null || p.LenderId == lenderId));
 
             var currentMonth = DateTime.UtcNow.Month;
             var currentYear = DateTime.UtcNow.Year;
@@ -428,10 +439,10 @@ namespace Money.Management.Services
         [Authorize(MoneyManagementPermissions.Dashboard.ViewFinancials)]
         public async Task<List<UpcomingPaymentDto>> GetUpcomingPaymentsAsync(int days = 30)
         {
-            var lenderId = await GetCurrentLenderIdAsync();
+            var lenderId = await GetLenderScopeAsync();
 
-            var credits = await _creditRepository.GetListAsync(c => c.LenderId == lenderId);
-            var borrowers = await _borrowerRepository.GetListAsync(b => b.LenderId == lenderId);
+            var credits = await _creditRepository.GetListAsync(c => (lenderId == null || c.LenderId == lenderId));
+            var borrowers = await _borrowerRepository.GetListAsync(b => (lenderId == null || b.LenderId == lenderId));
 
             var today = DateTime.UtcNow.Date;
             var futureDate = today.AddDays(days);
@@ -474,10 +485,10 @@ namespace Money.Management.Services
         [Authorize(MoneyManagementPermissions.Dashboard.ViewFinancials)]
         public async Task<BorrowerAnalyticsDto> GetBorrowerAnalyticsAsync()
         {
-            var lenderId = await GetCurrentLenderIdAsync();
+            var lenderId = await GetLenderScopeAsync();
 
-            var borrowers = await _borrowerRepository.GetListAsync(b => b.LenderId == lenderId);
-            var credits = await _creditRepository.GetListAsync(c => c.LenderId == lenderId);
+            var borrowers = await _borrowerRepository.GetListAsync(b => (lenderId == null || b.LenderId == lenderId));
+            var credits = await _creditRepository.GetListAsync(c => (lenderId == null || c.LenderId == lenderId));
 
             var goodStanding = borrowers.Count(b => b.Outstanding == 0 || b.Status == BorrowerStatus.PaidOff);
             var atRisk = borrowers.Count(b => b.Outstanding > 0 && b.Status == BorrowerStatus.Active);
@@ -532,14 +543,14 @@ namespace Money.Management.Services
         [Authorize(MoneyManagementPermissions.Dashboard.ViewFinancials)]
         public async Task<PortfolioHealthDto> GetPortfolioHealthAsync()
         {
-            var lenderId = await GetCurrentLenderIdAsync();
-            var credits = await _creditRepository.GetListAsync(c => c.LenderId == lenderId);
+            var lenderId = await GetLenderScopeAsync();
+            var credits = await _creditRepository.GetListAsync(c => (lenderId == null || c.LenderId == lenderId));
 
             var totalOutstanding = credits
                 .Where(l => l.Status == CreditStatus.Active || l.Status == CreditStatus.Overdue)
                 .Sum(l => l.OutstandingAmount);
 
-            var overdueMoneys = credits.Where(l => l.Status == CreditStatus.Overdue).ToList();
+            var overdueMoneys = credits.Where(l => l.IsLate(DateTime.UtcNow)).ToList();
             var overdueAmount = overdueMoneys.Sum(l => l.OutstandingAmount);
 
             var portfolioAtRisk = totalOutstanding > 0
@@ -559,7 +570,7 @@ namespace Money.Management.Services
                 : 0;
 
             var delinquencyRate = credits.Any()
-                ? (credits.Count(l => l.Status == CreditStatus.Overdue) / (decimal)credits.Count) * 100
+                ? (credits.Count(l => l.IsLate(DateTime.UtcNow)) / (decimal)credits.Count) * 100
                 : 0;
 
             var overallHealth = portfolioAtRisk < 5 ? "Excellent" :
@@ -603,8 +614,8 @@ namespace Money.Management.Services
         [Authorize(MoneyManagementPermissions.Dashboard.ViewFinancials)]
         public async Task<MoneyAgingDto> GetMoneyAgingAsync()
         {
-            var lenderId = await GetCurrentLenderIdAsync();
-            var credits = await _creditRepository.GetListAsync(c => c.LenderId == lenderId);
+            var lenderId = await GetLenderScopeAsync();
+            var credits = await _creditRepository.GetListAsync(c => (lenderId == null || c.LenderId == lenderId));
             var today = DateTime.UtcNow.Date;
 
             var current = credits.Where(l =>
@@ -674,7 +685,7 @@ namespace Money.Management.Services
             else if (paymentRate >= 50) score += 20;
             else score += 10;
 
-            var overdueMoneys = credits.Count(l => l.Status == CreditStatus.Overdue);
+            var overdueMoneys = credits.Count(l => l.IsLate(DateTime.UtcNow));
             if (overdueMoneys == 0) score += 30;
             else if (overdueMoneys == 1) score += 20;
             else if (overdueMoneys == 2) score += 10;

@@ -51,6 +51,7 @@ public class MoneyManagementDbContext :
     public DbSet<LenderApplication> LenderApplications { get; set; }
     public DbSet<Borrower> Borrowers { get; set; }
     public DbSet<BorrowerApplication> BorrowerApplications { get; set; }
+    public DbSet<LoanRequest> LoanRequests { get; set; }
     public DbSet<BorrowerDocument> BorrowerDocuments { get; set; }
     public DbSet<BorrowerBankAccount> BorrowerBankAccounts { get; set; }
     public DbSet<Credit> Credits { get; set; }
@@ -213,7 +214,8 @@ public class MoneyManagementDbContext :
 
             // Indexes
             b.HasIndex(x => x.LenderId);
-            b.HasIndex(x => x.IdNumber).IsUnique().HasFilter("[IdNumber] IS NOT NULL");
+            // An ID number is unique per lender: the same person can borrow from several lenders.
+            b.HasIndex(x => new { x.LenderId, x.IdNumber }).IsUnique().HasFilter("[IdNumber] IS NOT NULL");
             b.HasIndex(x => x.Status);
             b.HasIndex(x => x.EmailAddress);
             b.HasIndex(x => x.PhoneNumber);
@@ -240,6 +242,27 @@ public class MoneyManagementDbContext :
             b.HasIndex(x => x.Email);
             b.HasIndex(x => x.IdNumber);
             b.HasIndex(x => x.Status);
+        });
+
+        // ============ Loan Request Configuration ============
+        builder.Entity<LoanRequest>(b =>
+        {
+            b.ToTable("LoanRequests");
+            b.ConfigureByConvention();
+
+            b.Property(x => x.ApplicantName).IsRequired().HasMaxLength(200);
+            b.Property(x => x.ApplicantEmail).HasMaxLength(256);
+            b.Property(x => x.PhoneNumber).HasMaxLength(20);
+            b.Property(x => x.IdNumber).HasMaxLength(20);
+            b.Property(x => x.Address).IsRequired().HasMaxLength(500);
+            b.Property(x => x.MonthlyIncome).HasColumnType("decimal(18,2)");
+            b.Property(x => x.Amount).HasColumnType("decimal(18,2)");
+            b.Property(x => x.Reason).IsRequired().HasMaxLength(1000);
+            b.Property(x => x.InterestRate).HasColumnType("decimal(5,2)");
+            b.Property(x => x.ReviewNote).HasMaxLength(1000);
+
+            b.HasIndex(x => x.UserId);
+            b.HasIndex(x => new { x.LenderId, x.Status });
         });
 
         // ============ Credit Configuration ============

@@ -89,21 +89,57 @@ namespace Money.Management.Entities
                 Status = CreditStatus.PaidOff;
                 OutstandingAmount = 0;
             }
-            else if (DateTime.UtcNow > DueDate)
-            {
-                Status = CreditStatus.Overdue;
-            }
             else
+            {
+                // The expected payback date never changes the status; it only rates the borrower.
+                Status = CreditStatus.Active;
+            }
+        }
+
+        // The expected payback date is used only to judge how well a borrower pays back:
+        // an unpaid loan past that date is "late". It never changes the loan's status.
+        public bool IsLate(DateTime today) => OutstandingAmount > 0
+            && Status != CreditStatus.PaidOff
+            && Status != CreditStatus.Cancelled
+            && Status != CreditStatus.Rejected
+            && today.Date > DueDate.Date;
+
+        public int DaysLate(DateTime today) => IsLate(today) ? (today.Date - DueDate.Date).Days : 0;
+
+        // Lends more money on this loan at its own interest rate. The interest on the extra
+        // amount is added as-is; InterestRate becomes the overall (blended) rate for display.
+        // A settled loan becomes active again.
+        public void TopUp(decimal amount, decimal interestRate)
+        {
+            if (amount <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(amount), "Top-up amount must be greater than 0.");
+            }
+            if (interestRate < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(interestRate), "Interest rate cannot be negative.");
+            }
+
+            PrincipalAmount += amount;
+            InterestAmount += Math.Round(amount * (interestRate / 100), 2);
+            InterestRate = PrincipalAmount > 0 ? Math.Round(InterestAmount / PrincipalAmount * 100, 2) : interestRate;
+            TotalAmount = PrincipalAmount + InterestAmount;
+            OutstandingAmount = TotalAmount - AmountPaid;
+
+            if (OutstandingAmount > 0 &&
+                (Status == CreditStatus.PaidOff || Status == CreditStatus.Approved || Status == CreditStatus.Overdue))
             {
                 Status = CreditStatus.Active;
             }
         }
 
+        // Loans are no longer marked Overdue by date (see IsLate). This moves loans that were
+        // marked Overdue in the past back to Active; the background job calls it.
         public void CheckOverdueStatus()
         {
-            if (OutstandingAmount > 0 && DateTime.UtcNow.Date > DueDate.Date)
+            if (Status == CreditStatus.Overdue)
             {
-                Status = CreditStatus.Overdue;
+                Status = OutstandingAmount > 0 ? CreditStatus.Active : CreditStatus.PaidOff;
             }
         }
 

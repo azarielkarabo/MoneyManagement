@@ -10,6 +10,7 @@ namespace Money.Management.Services.credits.Dtos
         public Guid BorrowerId { get; set; }
         public string BorrowerName { get; set; }
         public Guid LenderId { get; set; }
+        public string? LenderName { get; set; }
 
         // Money Details
         public decimal PrincipalAmount { get; set; }

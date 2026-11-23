@@ -113,21 +113,14 @@ namespace Money.Management.DomainServices
 
         public async Task CheckAndUpdateOverdueMoneysAsync()
         {
-            var activeMoneys = await _creditRepository
-                .GetListAsync(l =>
-                    (l.Status == CreditStatus.Active || l.Status == CreditStatus.Approved) &&
-                    l.OutstandingAmount > 0);
+            // Loans are no longer marked Overdue by date; move any that were back to Active.
+            // Lateness is worked out from the expected payback date when rating borrowers.
+            var updatedMoneys = await _creditRepository
+                .GetListAsync(l => l.Status == CreditStatus.Overdue);
 
-            var updatedMoneys = new List<Credit>();
-
-            foreach (var credit in activeMoneys)
+            foreach (var credit in updatedMoneys)
             {
                 credit.CheckOverdueStatus();
-
-                if (credit.Status == CreditStatus.Overdue)
-                {
-                    updatedMoneys.Add(credit);
-                }
             }
 
             if (updatedMoneys.Any())

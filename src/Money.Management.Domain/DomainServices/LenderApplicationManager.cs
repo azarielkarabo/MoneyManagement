@@ -30,8 +30,12 @@ namespace Money.Management.DomainServices
             string? phoneNumber,
             string desiredUserName,
             string position,
-            string? message)
+            string? message,
+            bool forExistingUser = false)
         {
+            // An account holder applying from inside the app already owns this email/username.
+            if (!forExistingUser)
+            {
             var existingByEmail = await _identityUserRepository.FindByNormalizedEmailAsync(email.ToUpperInvariant());
             if (existingByEmail != null)
             {
@@ -42,6 +46,7 @@ namespace Money.Management.DomainServices
             if (existingByUserName != null)
             {
                 throw new BusinessException("USERNAME_ALREADY_EXISTS").WithData("UserName", desiredUserName);
+            }
             }
 
             var pendingDuplicate = await _applicationRepository.AnyAsync(a =>

@@ -14,8 +14,8 @@ namespace Money.Management.Services.credits.Dtos
         [Range(0, 100, ErrorMessage = "Interest rate must be between 0 and 100")]
         public decimal InterestRate { get; set; }
 
-        [Required]
-        [Range(1, 600, ErrorMessage = "Term months must be between 1 and 600")]
+        // Optional: informal loans have no fixed repayment term (0 = open-ended).
+        [Range(0, 600, ErrorMessage = "Term months must be between 0 and 600")]
         public int TermMonths { get; set; }
 
         [Required]

@@ -5,6 +5,8 @@ using Money.Management.Enums;
 using Money.Management.Permissions;
 using Money.Management.Services.credits;
 using Money.Management.Services.credits.Dtos;
+using Money.Management.Settings;
+using Volo.Abp.Settings;
 using Microsoft.AspNetCore.Authorization;
 using System;
 using System.Collections.Generic;
@@ -42,6 +44,17 @@ namespace Money.Management.Services
         {
             var lender = await _lenderManager.GetCurrentLenderAsync();
             return lender.Id;
+        }
+
+
+        // Admins see everything (null = no lender filter); lenders only see their own data.
+        private async Task<Guid?> GetLenderScopeAsync()
+        {
+            if (CurrentUser.IsInRole("admin"))
+            {
+                return null;
+            }
+            return (await _lenderManager.GetCurrentLenderAsync()).Id;
         }
 
         [Authorize(MoneyManagementPermissions.Credits.Default)]
@@ -101,9 +114,9 @@ namespace Money.Management.Services
                 queryable = queryable.Where(l => l.Status == CreditStatus.Overdue);
             }
 
-            var lenderId = await GetCurrentLenderIdAsync();
+            var lenderId = await GetLenderScopeAsync();
 
-            queryable = queryable.Where(i => i.LenderId == lenderId);
+            queryable = queryable.Where(i => (lenderId == null || i.LenderId == lenderId));
 
             var totalCount = await AsyncExecuter.CountAsync(queryable);
 
@@ -129,7 +142,7 @@ namespace Money.Management.Services
         [Authorize(MoneyManagementPermissions.Credits.Create)]
         public async Task<CreditDto> CreateAsync(CreateCreditDto input)
         {
-            var lenderId = await GetCurrentLenderIdAsync();
+            var lenderId = await GetCurrentLenderIdAsync(); // only a lender can create a loan
             var credit = new Credit(
                 GuidGenerator.Create(),
                 input.BorrowerId,
@@ -165,11 +178,16 @@ namespace Money.Management.Services
 
             // The corrected total cannot be less than what the borrower has already paid.
             var newTotal = input.PrincipalAmount + input.PrincipalAmount * (input.InterestRate / 100);
-            if (newTotal < credit.AmountPaid)
+            var amountsEdited = credit.PrincipalAmount != input.PrincipalAmount || credit.InterestRate != input.InterestRate;
+            if (amountsEdited && newTotal < credit.AmountPaid)
             {
                 throw new UserFriendlyException(
                     $"The new total ({newTotal:N2}) cannot be less than the amount already paid ({credit.AmountPaid:N2}).");
             }
+
+            // Only recalculate interest when the principal or rate was actually changed, so
+            // top-ups made at their own rates are not overwritten by an unrelated edit.
+            var moneyChanged = credit.PrincipalAmount != input.PrincipalAmount || credit.InterestRate != input.InterestRate;
 
             credit.PrincipalAmount = input.PrincipalAmount;
             credit.InterestRate = input.InterestRate;
@@ -179,8 +197,10 @@ namespace Money.Management.Services
             credit.Notes = input.Notes;
             credit.RepaymentType = input.RepaymentType;
 
-            // Recalculate amounts
-            credit.CalculateMoneyAmounts();
+            if (moneyChanged)
+            {
+                credit.CalculateMoneyAmounts();
+            }
 
             // A lender may mark a loan as active, suspended, defaulted or cancelled.
             // Other status values are ignored here; payments and the balance drive those.
@@ -204,6 +224,39 @@ namespace Money.Management.Services
             await _creditRepository.UpdateAsync(credit);
 
             // Update borrower financials
+            await UpdateBorrowerFinancialsAsync(credit.BorrowerId);
+
+            return await GetAsync(id);
+        }
+
+        [Authorize(MoneyManagementPermissions.Credits.Edit)]
+        public async Task<CreditDto> TopUpAsync(Guid id, TopUpCreditDto input)
+        {
+            var credit = await _creditRepository.GetAsync(id);
+
+            if (credit.Status == CreditStatus.Cancelled || credit.Status == CreditStatus.Defaulted)
+            {
+                throw new UserFriendlyException("A cancelled or defaulted loan cannot be topped up.");
+            }
+
+            var topUpRate = input.InterestRate!.Value;
+            credit.TopUp(input.Amount, topUpRate);
+
+            if (input.DueDate.HasValue)
+            {
+                credit.DueDate = input.DueDate.Value;
+            }
+
+            // Keep a short history of top-ups in the loan notes, as long as it fits.
+            var entry = $"[{Clock.Now:yyyy-MM-dd}] Top-up R {input.Amount:N2} at {topUpRate:0.##}%"
+                + (string.IsNullOrWhiteSpace(input.Note) ? "" : $" — {input.Note.Trim()}");
+            var notes = string.IsNullOrWhiteSpace(credit.Notes) ? entry : $"{credit.Notes}\n{entry}";
+            if (notes.Length <= 1000)
+            {
+                credit.Notes = notes;
+            }
+
+            await _creditRepository.UpdateAsync(credit);
             await UpdateBorrowerFinancialsAsync(credit.BorrowerId);
 
             return await GetAsync(id);
@@ -234,8 +287,23 @@ namespace Money.Management.Services
         {
             var queryable = await _creditRepository.GetQueryableAsync();
 
-            // Get only overdue credits
-            queryable = queryable.Where(l => l.Status == CreditStatus.Overdue);
+            // Bad payers: loans still owing more than the admin-set grace period past their
+            // expected payback date. This is how a borrower is rated; the loan's status is not involved.
+            var graceDays = await SettingProvider.GetAsync(
+                MoneyManagementSettings.BadPayers.GraceDays, MoneyManagementSettings.BadPayers.DefaultGraceDays);
+            var highDays = await SettingProvider.GetAsync(
+                MoneyManagementSettings.BadPayers.HighDays, MoneyManagementSettings.BadPayers.DefaultHighDays);
+            var criticalDays = await SettingProvider.GetAsync(
+                MoneyManagementSettings.BadPayers.CriticalDays, MoneyManagementSettings.BadPayers.DefaultCriticalDays);
+
+            var today = DateTime.UtcNow.Date;
+            var latestQualifyingDueDate = today.AddDays(-graceDays);
+            queryable = queryable.Where(l =>
+                l.OutstandingAmount > 0 &&
+                l.DueDate < latestQualifyingDueDate &&
+                l.Status != CreditStatus.PaidOff &&
+                l.Status != CreditStatus.Cancelled &&
+                l.Status != CreditStatus.Rejected);
 
             var credits = await AsyncExecuter.ToListAsync(queryable);
 
@@ -284,6 +352,9 @@ namespace Money.Management.Services
                     AmountPaid = credit.AmountPaid,
                     DueDate = credit.DueDate,
                     DaysOverdue = daysOverdue,
+                    Severity = daysOverdue >= criticalDays ? OverdueSeverity.Critical
+                        : daysOverdue >= highDays ? OverdueSeverity.High
+                        : OverdueSeverity.Medium,
                     LastPaymentDate = lastPayment?.PaymentDate,
                     LastPaymentAmount = lastPayment?.Amount,
                     PaymentProgress = credit.TotalAmount > 0
@@ -336,11 +407,10 @@ namespace Money.Management.Services
         [Authorize(MoneyManagementPermissions.Credits.Edit)]
         public async Task CheckAndUpdateOverdueMoneysAsync()
         {
-            var activeCredits = await _creditRepository.GetListAsync(
-                c => c.Status == CreditStatus.Active || c.Status == CreditStatus.Approved
-            );
+            // Loans are no longer marked Overdue by date; move any that were back to Active.
+            var overdueCredits = await _creditRepository.GetListAsync(c => c.Status == CreditStatus.Overdue);
 
-            foreach (var credit in activeCredits)
+            foreach (var credit in overdueCredits)
             {
                 credit.CheckOverdueStatus();
                 await _creditRepository.UpdateAsync(credit);

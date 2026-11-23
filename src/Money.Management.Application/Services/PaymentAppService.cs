@@ -52,6 +52,17 @@ namespace Money.Management.Services
             return lender.Id;
         }
 
+
+        // Admins see everything (null = no lender filter); lenders only see their own data.
+        private async Task<Guid?> GetLenderScopeAsync()
+        {
+            if (CurrentUser.IsInRole("admin"))
+            {
+                return null;
+            }
+            return (await _lenderManager.GetCurrentLenderAsync()).Id;
+        }
+
         [Authorize(MoneyManagementPermissions.Payments.Default)]
         public async Task<PaymentDto> GetAsync(Guid id)
         {
@@ -62,11 +73,11 @@ namespace Money.Management.Services
         [Authorize(MoneyManagementPermissions.Payments.Default)]
         public async Task<PagedResultDto<PaymentDto>> GetListAsync(GetPaymentsInput input)
         {
-            var lenderId = await GetCurrentLenderIdAsync();
+            var lenderId = await GetLenderScopeAsync();
             var queryable = await _paymentRepository.GetQueryableAsync();
 
             // Get credits for this lender to filter payments
-            var lenderCreditIds = (await _creditRepository.GetListAsync(c => c.LenderId == lenderId))
+            var lenderCreditIds = (await _creditRepository.GetListAsync(c => (lenderId == null || c.LenderId == lenderId)))
                 .Select(c => c.Id)
                 .ToList();
 
@@ -120,11 +131,11 @@ namespace Money.Management.Services
         [Authorize(MoneyManagementPermissions.Payments.Create)]
         public async Task<PaymentDto> CreateAsync(CreatePaymentDto input)
         {
-            var lenderId = await GetCurrentLenderIdAsync();
+            var lenderId = await GetLenderScopeAsync();
             var credit = await _creditRepository.GetAsync(input.CreditId);
 
             // Verify credit belongs to current lender
-            if (credit.LenderId != lenderId)
+            if (lenderId != null && credit.LenderId != lenderId)
             {
                 throw new UnauthorizedAccessException("You do not have permission to record payment for this credit.");
             }
@@ -155,7 +166,7 @@ namespace Money.Management.Services
             // Create payment entity
             var payment = new Payment(
                 GuidGenerator.Create(),
-                lenderId,
+                credit.LenderId, // the loan's lender (an admin may record it for them)
                 input.CreditId,
                 credit.BorrowerId,
                 borrower.FullName,
@@ -182,12 +193,12 @@ namespace Money.Management.Services
         [Authorize(MoneyManagementPermissions.Payments.Delete)]
         public async Task DeleteAsync(Guid id)
         {
-            var lenderId = await GetCurrentLenderIdAsync();
+            var lenderId = await GetLenderScopeAsync();
             var payment = await _paymentRepository.GetAsync(id);
             var credit = await _creditRepository.GetAsync(payment.CreditId);
 
             // Verify credit belongs to current lender
-            if (credit.LenderId != lenderId)
+            if (lenderId != null && credit.LenderId != lenderId)
             {
                 throw new UnauthorizedAccessException("You do not have permission to delete this payment.");
             }
@@ -197,16 +208,10 @@ namespace Money.Management.Services
             credit.OutstandingAmount += payment.Amount;
 
             // Update credit status
+            // The expected payback date never changes the status; it only rates the borrower.
             if (credit.OutstandingAmount > 0)
             {
-                if (DateTime.UtcNow > credit.DueDate)
-                {
-                    credit.Status = CreditStatus.Overdue;
-                }
-                else
-                {
-                    credit.Status = CreditStatus.Active;
-                }
+                credit.Status = CreditStatus.Active;
             }
 
             await _creditRepository.UpdateAsync(credit);
@@ -220,10 +225,10 @@ namespace Money.Management.Services
         public async Task<List<PaymentsByBorrowerDto>> GetPaymentsByBorrowerAsync(
             GetPaymentsInput input)
         {
-            var lenderId = await GetCurrentLenderIdAsync();
+            var lenderId = await GetLenderScopeAsync();
 
             // Get all credits for this lender
-            var lenderCredits = await _creditRepository.GetListAsync(c => c.LenderId == lenderId);
+            var lenderCredits = await _creditRepository.GetListAsync(c => (lenderId == null || c.LenderId == lenderId));
             var lenderCreditIds = lenderCredits.Select(c => c.Id).ToList();
 
             var queryable = await _paymentRepository.GetQueryableAsync();
@@ -266,12 +271,12 @@ namespace Money.Management.Services
         [Authorize(MoneyManagementPermissions.Payments.Approve)]
         public async Task<PaymentDto> ApprovePaymentAsync(Guid id)
         {
-            var lenderId = await GetCurrentLenderIdAsync();
+            var lenderId = await GetLenderScopeAsync();
             var payment = await _paymentRepository.GetAsync(id);
             var credit = await _creditRepository.GetAsync(payment.CreditId);
 
             // Verify credit belongs to current lender
-            if (credit.LenderId != lenderId)
+            if (lenderId != null && credit.LenderId != lenderId)
             {
                 throw new UnauthorizedAccessException("You do not have permission to approve this payment.");
             }
@@ -285,12 +290,12 @@ namespace Money.Management.Services
             Guid? borrowerId = null,
             Guid? creditId = null)
         {
-            var lenderId = await GetCurrentLenderIdAsync();
+            var lenderId = await GetLenderScopeAsync();
 
             var queryable = await _paymentRepository.GetQueryableAsync();
 
             // Get all credits for this lender
-            var lenderCreditIds = (await _creditRepository.GetListAsync(c => c.LenderId == lenderId))
+            var lenderCreditIds = (await _creditRepository.GetListAsync(c => (lenderId == null || c.LenderId == lenderId)))
                 .Select(c => c.Id)
                 .ToList();
 
@@ -313,10 +318,10 @@ namespace Money.Management.Services
         [Authorize(MoneyManagementPermissions.Payments.Default)]
         public async Task<List<PaymentDto>> GetRecentPaymentsAsync(int count = 10)
         {
-            var lenderId = await GetCurrentLenderIdAsync();
+            var lenderId = await GetLenderScopeAsync();
 
             // Get all credits for this lender
-            var lenderCreditIds = (await _creditRepository.GetListAsync(c => c.LenderId == lenderId))
+            var lenderCreditIds = (await _creditRepository.GetListAsync(c => (lenderId == null || c.LenderId == lenderId)))
                 .Select(c => c.Id)
                 .ToList();
 

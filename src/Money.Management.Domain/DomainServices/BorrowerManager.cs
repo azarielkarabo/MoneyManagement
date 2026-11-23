@@ -2,6 +2,7 @@
 using Money.Management.Entities;
 using Money.Management.Enums;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Volo.Abp.Domain.Repositories;
@@ -62,6 +63,34 @@ namespace Money.Management.DomainServices
             throw new InvalidOperationException("No borrower profile found for the current user.");
         }
 
+        // Every borrower record of the signed-in user (one per lender they borrow from). Records a
+        // lender captured with the same email but no login yet are linked to the account here.
+        public async Task<List<Borrower>> GetCurrentUserBorrowersAsync()
+        {
+            if (!_currentUser.IsAuthenticated || !_currentUser.Id.HasValue)
+            {
+                return new List<Borrower>();
+            }
+
+            var userId = _currentUser.Id.Value;
+            var borrowers = await _borrowerRepository.GetListAsync(b => b.UserId == userId);
+
+            var email = _currentUser.Email?.ToLower();
+            if (!string.IsNullOrWhiteSpace(email))
+            {
+                var unlinked = await _borrowerRepository.GetListAsync(b =>
+                    b.UserId == null && b.EmailAddress != null && b.EmailAddress.ToLower() == email);
+                foreach (var borrower in unlinked)
+                {
+                    borrower.AssignUser(userId);
+                    await _borrowerRepository.UpdateAsync(borrower);
+                    borrowers.Add(borrower);
+                }
+            }
+
+            return borrowers;
+        }
+
         public async Task<Borrower> CreateAsync(
             Guid lenderId,
             string firstName,
@@ -77,7 +106,7 @@ namespace Money.Management.DomainServices
             if (!string.IsNullOrWhiteSpace(idNumber))
             {
                 var existingBorrower = await _borrowerRepository
-                    .FirstOrDefaultAsync(b => b.IdNumber == idNumber);
+                    .FirstOrDefaultAsync(b => b.LenderId == lenderId && b.IdNumber == idNumber);
 
                 if (existingBorrower != null)
                 {
