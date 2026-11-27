@@ -56,6 +56,7 @@ public class MoneyManagementDbContext :
     public DbSet<BorrowerBankAccount> BorrowerBankAccounts { get; set; }
     public DbSet<Credit> Credits { get; set; }
     public DbSet<Payment> Payments { get; set; }
+    public DbSet<CreditTopUp> CreditTopUps { get; set; }
 
     // Loan Management
     public DbSet<Loan> Loans { get; set; }
@@ -582,6 +583,26 @@ public class MoneyManagementDbContext :
                 .OnDelete(DeleteBehavior.Cascade);
 
             b.HasIndex(x => new { x.LenderId, x.TransactionDate });
+        });
+
+        // ============ CreditTopUp Configuration ============
+        builder.Entity<CreditTopUp>(b =>
+        {
+            b.ToTable("CreditTopUps");
+            b.ConfigureByConvention();
+
+            b.Property(x => x.Amount).IsRequired().HasColumnType("decimal(18,2)");
+            b.Property(x => x.InterestRate).IsRequired().HasColumnType("decimal(5,2)");
+            b.Property(x => x.InterestAmount).IsRequired().HasColumnType("decimal(18,2)");
+            b.Property(x => x.OutstandingAfter).HasColumnType("decimal(18,2)");
+            b.Property(x => x.Note).HasMaxLength(200);
+
+            b.HasOne<Credit>()
+                .WithMany()
+                .HasForeignKey(x => x.CreditId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            b.HasIndex(x => new { x.CreditId, x.TopUpDate });
         });
 
         // ============ BorrowerDocument Configuration ============

@@ -24,12 +24,14 @@ namespace Money.Management.Services
         private readonly IRepository<Credit, Guid> _creditRepository;
         private readonly IRepository<Borrower, Guid> _borrowerRepository;
         private readonly IRepository<Payment, Guid> _paymentRepository;
+        private readonly IRepository<CreditTopUp, Guid> _topUpRepository;
         private readonly LenderManager _lenderManager;
 
         public CreditAppService(
             IRepository<Credit, Guid> creditRepository,
             IRepository<Borrower, Guid> borrowerRepository,
             IRepository<Payment, Guid> paymentRepository,
+            IRepository<CreditTopUp, Guid> topUpRepository,
             CreditManager MoneyManager,
             BorrowerManager borrowerManager,
             LenderManager lenderManager)
@@ -37,6 +39,7 @@ namespace Money.Management.Services
             _creditRepository = creditRepository;
             _borrowerRepository = borrowerRepository;
             _paymentRepository = paymentRepository;
+            _topUpRepository = topUpRepository;
             _lenderManager = lenderManager;
         }
 
@@ -243,26 +246,53 @@ namespace Money.Management.Services
             }
 
             var topUpRate = input.InterestRate!.Value;
-            credit.TopUp(input.Amount, topUpRate);
+            var extraInterest = credit.TopUp(input.Amount, topUpRate);
 
             if (input.DueDate.HasValue)
             {
                 credit.DueDate = input.DueDate.Value;
             }
 
-            // Keep a short history of top-ups in the loan notes, as long as it fits.
-            var entry = $"[{Clock.Now:yyyy-MM-dd}] Top-up R {input.Amount:N2} at {topUpRate:0.##}%"
-                + (string.IsNullOrWhiteSpace(input.Note) ? "" : $" — {input.Note.Trim()}");
-            var notes = string.IsNullOrWhiteSpace(credit.Notes) ? entry : $"{credit.Notes}\n{entry}";
-            if (notes.Length <= 1000)
-            {
-                credit.Notes = notes;
-            }
+            // Record the top-up so the loan's history shows how the balance was reached.
+            await _topUpRepository.InsertAsync(new CreditTopUp(
+                GuidGenerator.Create(),
+                credit.Id,
+                input.Amount,
+                topUpRate,
+                extraInterest,
+                Clock.Now,
+                credit.OutstandingAmount,
+                string.IsNullOrWhiteSpace(input.Note) ? null : input.Note.Trim()));
 
             await _creditRepository.UpdateAsync(credit);
             await UpdateBorrowerFinancialsAsync(credit.BorrowerId);
 
             return await GetAsync(id);
+        }
+
+        // Every top-up on a loan, oldest first.
+        [Authorize(MoneyManagementPermissions.Credits.Default)]
+        public async Task<ListResultDto<CreditTopUpDto>> GetTopUpsAsync(Guid id)
+        {
+            // Loads the loan first so a missing loan gives the usual not-found error.
+            await _creditRepository.GetAsync(id);
+
+            var queryable = await _topUpRepository.GetQueryableAsync();
+            var topUps = await AsyncExecuter.ToListAsync(
+                queryable.Where(t => t.CreditId == id).OrderBy(t => t.TopUpDate).ThenBy(t => t.CreationTime));
+
+            return new ListResultDto<CreditTopUpDto>(topUps.Select(t => new CreditTopUpDto
+            {
+                Id = t.Id,
+                CreditId = t.CreditId,
+                Amount = t.Amount,
+                InterestRate = t.InterestRate,
+                InterestAmount = t.InterestAmount,
+                TopUpDate = t.TopUpDate,
+                OutstandingAfter = t.OutstandingAfter,
+                Note = t.Note,
+                CreationTime = t.CreationTime,
+            }).ToList());
         }
 
         [Authorize(MoneyManagementPermissions.Credits.Delete)]

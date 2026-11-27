@@ -109,7 +109,8 @@ namespace Money.Management.Entities
         // Lends more money on this loan at its own interest rate. The interest on the extra
         // amount is added as-is; InterestRate becomes the overall (blended) rate for display.
         // A settled loan becomes active again.
-        public void TopUp(decimal amount, decimal interestRate)
+        // Returns the interest charged on the extra amount.
+        public decimal TopUp(decimal amount, decimal interestRate)
         {
             if (amount <= 0)
             {
@@ -120,8 +121,9 @@ namespace Money.Management.Entities
                 throw new ArgumentOutOfRangeException(nameof(interestRate), "Interest rate cannot be negative.");
             }
 
+            var extraInterest = Math.Round(amount * (interestRate / 100), 2);
             PrincipalAmount += amount;
-            InterestAmount += Math.Round(amount * (interestRate / 100), 2);
+            InterestAmount += extraInterest;
             InterestRate = PrincipalAmount > 0 ? Math.Round(InterestAmount / PrincipalAmount * 100, 2) : interestRate;
             TotalAmount = PrincipalAmount + InterestAmount;
             OutstandingAmount = TotalAmount - AmountPaid;
@@ -131,6 +133,8 @@ namespace Money.Management.Entities
             {
                 Status = CreditStatus.Active;
             }
+
+            return extraInterest;
         }
 
         // Loans are no longer marked Overdue by date (see IsLate). This moves loans that were

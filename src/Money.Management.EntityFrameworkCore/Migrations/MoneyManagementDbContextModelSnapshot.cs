@@ -832,6 +832,48 @@ namespace Money.Management.Migrations
                     b.ToTable("Credits", (string)null);
                 });
 
+            modelBuilder.Entity("Money.Management.Entities.CreditTopUp", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("CreationTime")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("CreationTime");
+
+                    b.Property<Guid?>("CreatorId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("CreatorId");
+
+                    b.Property<Guid>("CreditId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("InterestAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("InterestRate")
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<decimal?>("OutstandingAfter")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("TopUpDate")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreditId", "TopUpDate");
+
+                    b.ToTable("CreditTopUps", (string)null);
+                });
+
             modelBuilder.Entity("Money.Management.Entities.ExpenseEntry", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3460,6 +3502,15 @@ namespace Money.Management.Migrations
                     b.Navigation("Borrower");
 
                     b.Navigation("Lender");
+                });
+
+            modelBuilder.Entity("Money.Management.Entities.CreditTopUp", b =>
+                {
+                    b.HasOne("Money.Management.Entities.Credit", null)
+                        .WithMany()
+                        .HasForeignKey("CreditId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Money.Management.Entities.ExpenseEntry", b =>

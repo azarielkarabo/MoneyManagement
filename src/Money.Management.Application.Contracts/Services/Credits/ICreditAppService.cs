@@ -13,6 +13,7 @@ namespace Money.Management.Services.credits
         Task<CreditDto> CreateAsync(CreateCreditDto input);
         Task<CreditDto> UpdateAsync(Guid id, UpdateCreditDto input);
         Task<CreditDto> TopUpAsync(Guid id, TopUpCreditDto input);
+        Task<ListResultDto<CreditTopUpDto>> GetTopUpsAsync(Guid id);
         Task DeleteAsync(Guid id);
         Task<PagedResultDto<OverdueCreditDto>> GetOverdueMoneysAsync(GetOverdueCreditsInput input);
         Task<CreditDto> ApproveAsync(Guid id);
